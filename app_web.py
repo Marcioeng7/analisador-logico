@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V10.0 (Central Computacional: Séries, Matrizes 2x2/3x3 e Abas Expandidas)
+Versão: V11.0 (Mapas de Calor para Matrizes e Gráficos de Engenharia)
 Ano: 2026
 """
 
@@ -18,14 +18,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZES ---
+# --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES ---
 def processar_matriz_textual(texto_matriz):
     try:
         # Quebra as linhas pelo ponto e vírgula
         linhas_puras = [l.strip() for l in texto_matriz.split(";") if l.strip() != ""]
         matriz = []
         
-        for linha in list(linhas_puras):
+        for linha in linhas_puras:
             # Quebra os elementos de cada linha por vírgula
             valores = [float(x.strip()) for x in linha.split(",") if x.strip() != ""]
             if valores:
@@ -36,7 +36,7 @@ def processar_matriz_textual(texto_matriz):
         
         # Validação de consistência geométrica da matriz
         if not all(len(l) == num_colunas for l in matriz):
-            return "Erro: A matriz possui linhas com comprimentos desalinhados ou diferentes.", None
+            return "Erro: A matriz possui linhas com comprimentos desalinhados ou diferentes.", None, None
             
         # Cálculo da Matriz Transposta (linhas viram colunas)
         transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
@@ -44,19 +44,33 @@ def processar_matriz_textual(texto_matriz):
         det_txt = "N/A (Apenas matrizes quadradas 2x2 ou 3x3 possuem determinante estável)."
         if num_linhas == num_colunas:
             if num_linhas == 2:
-                # Determinante 2x2: ad - bc
                 det = (matriz[0][0] * matriz[1][1]) - (matriz[0][1] * matriz[1][0])
                 det_txt = f"{round(det, 4)}"
             elif num_linhas == 3:
-                # Determinante 3x3: Regra de Sarrus diagonalizada
                 d1 = (matriz[0][0]*matriz[1][1]*matriz[2][2]) + (matriz[0][1]*matriz[1][2]*matriz[2][0]) + (matriz[0][2]*matriz[1][0]*matriz[2][1])
                 d2 = (matriz[0][2]*matriz[1][1]*matriz[2][0]) + (matriz[0][0]*matriz[1][2]*matriz[2][1]) + (matriz[0][1]*matriz[1][0]*matriz[2][2])
                 det_txt = f"{round(d1 - d2, 4)}"
                 
         relatorio = f"**Dimensão Identificada:** {num_linhas}x{num_colunas}  \n**Determinante Matemático:** {det_txt}"
-        return relatorio, transposta
+        
+        # --- GERAÇÃO DO GRÁFICO DA MATRIZ (MAPA DE CALOR) ---
+        fig, ax = plt.subplots(figsize=(4.5, 3.5))
+        # matshow plota os dados como uma imagem colorida de engenharia (Gradiente Viridis)
+        cax = ax.matshow(matriz, cmap="viridis")
+        fig.colorbar(cax, ax=ax, label="Escala de Valores")
+        
+        # Adiciona os valores numéricos como texto dentro de cada quadrado do gráfico
+        for i in range(num_linhas):
+            for j in range(num_colunas):
+                ax.text(j, i, f"{round(matriz[i][j], 2)}", ha='center', va='center', 
+                        color='white' if matriz[i][j] < (max(max(matriz)) / 2) else 'black', fontweight='bold')
+                        
+        ax.set_title("Distribuição Espacial de Intensidade (Matriz)", pad=15, fontsize=10, fontweight="bold")
+        fig.tight_layout()
+        
+        return relatorio, transposta, fig
     except Exception:
-        return "Erro analítico: Verifique se utilizou vírgulas para separar colunas e ponto e vírgula para linhas.", None
+        return "Erro analítico: Verifique se utilizou vírgulas para separar colunas e ponto e vírgula para linhas.", None, None
 
 # --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
@@ -64,11 +78,9 @@ def checar_convergencia_serie(sequencia):
     if n < 3:
         return ""
         
-    # Teste 1: Série Harmônica pura (1, 0.5, 0.333, 0.25...)
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)):
         return "\n\n**Análise Estatística de Série:** Série Harmônica Divergente ($\sum 1/n$).  \n*Comportamento:* A soma dos infinitos termos diverge lentamente para o infinito."
         
-    # Teste 2: Série Geométrica Inversa Infinita (1, 0.5, 0.25, 0.125...)
     if all(x != 0 for x in sequencia):
         razao = sequencia[1] / sequencia[0]
         if abs(razao) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - razao) < 0.01 for i in range(1, n)):
@@ -89,14 +101,14 @@ def eh_primo(n):
 def analisar_propriedades(sequencia):
     if not all(isinstance(x, int) for x in sequencia):
         return ""
-    propriedades = []
+    properties = []
     if all(x % 2 == 0 for x in sequencia):
-        propriedades.append("Apenas Números Pares")
+        properties.append("Apenas Números Pares")
     elif all(x % 2 != 0 for x in sequencia):
-        propriedades.append("Apenas Números Ímpares")
+        properties.append("Apenas Números Ímpares")
     if all(eh_primo(x) for x in sequencia):
-        propriedades.append("Apenas Números Primos")
-    return f"**Propriedade dos Termos:** {', '.join(propriedades)}." if propriedades else ""
+        properties.append("Apenas Números Primos")
+    return f"**Propriedade dos Termos:** {', '.join(properties)}." if properties else ""
 
 def identificar_padrao(sequencia):
     n = len(sequencia)
@@ -106,7 +118,6 @@ def identificar_padrao(sequencia):
     prop_txt = analisar_propriedades(sequencia)
     serie_txt = checar_convergencia_serie(sequencia)
 
-    # 1. TESTE: Fatorial
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         primeiro_termo = sequencia[0]
         fatoriais_validos = [i for i in range(1, 15) if math.factorial(i) == primeiro_termo]
@@ -116,20 +127,17 @@ def identificar_padrao(sequencia):
                 proximo = math.factorial(n_inicio + n)
                 return "Sequência Fatorial (n!)\nRegra: Multiplicação sucessiva.", proximo
 
-    # 2. TESTE: Quadrados Perfeitos
     if all(x >= 0 for x in sequencia) and (sequencia[0]**0.5).is_integer():
         r_start = int(sequencia[0]**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
             proximo = (r_start + n)**2
             return "Sequência de Quadrados Perfeitos (n²)\nRegra: Potências quadráticas.", proximo
 
-    # 3. TESTE: Cubos Perfeitos
     raiz_cubica_primeiro = round(sequencia[0]**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
         proximo = (raiz_cubica_primeiro + n)**3
         return "Sequência de Cubos Perfeitos (n³)\nRegra: Números elevados ao cubo.", proximo
 
-    # 4. TESTE: Números Triangulares
     try:
         det = 1 + 8 * sequencia[0]
         if det >= 0 and (det**0.5).is_integer():
@@ -141,18 +149,15 @@ def identificar_padrao(sequencia):
     except Exception:
         pass
 
-    # 5. TESTE: Sequência de Fibonacci
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         proximo = sequencia[-1] + sequencia[-2]
         return "Sequência de Fibonacci\nRegra: Soma dos dois termos anteriores.", proximo
 
-    # 6. TESTE: Sequência de Lucas
     if sequencia[0] == 2 and sequencia[1] == 1:
         if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
             proximo = sequencia[-1] + sequencia[-2]
             return "Sequência de Lucas\nRegra: Variação de Fibonacci iniciando em 2 e 1.", proximo
 
-    # 7. TESTE: Progressão Aritmética (PA)
     if n >= 2:
         razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
@@ -160,7 +165,6 @@ def identificar_padrao(sequencia):
             proximo = int(proximo) if isinstance(proximo, float) and proximo.is_integer() else proximo
             return f"Progressão Aritmética (PA)\nRazão: {'+' if razao_pa >= 0 else ''}{razao_pa}{serie_txt}\n\n{prop_txt}", proximo
 
-    # 8. TESTE: Progressão Geométrica (PG)
     if all(x != 0 for x in sequencia) and n >= 2:
         razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
@@ -169,7 +173,6 @@ def identificar_padrao(sequencia):
             nome = "Sequência Geométrica Alternada" if razao_pg < 0 else "Progressão Geométrica (PG)"
             return f"{nome}\nRazão Multiplicativa: *({round(razao_pg, 4)}){serie_txt}\n\n{prop_txt}", proximo
 
-    # 9. TESTE: Função Quadrática (2º Grau)
     dif_primeira = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_segunda = [dif_primeira[i] - dif_primeira[i-1] for i in range(1, len(dif_primeira))]
     if len(dif_segunda) > 0 and all(d == dif_segunda[0] for d in dif_segunda):
@@ -187,18 +190,18 @@ st.sidebar.title("⚙️ Painel de Controle")
 st.sidebar.markdown("---")
 st.sidebar.write("**Desenvolvido por:**")
 st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V10.0 (Matrizes Integradas)")
+st.sidebar.write("**Versão:** V11.0 (Mapas de Matrizes)")
 
 st.title("📊 Central Computacional de Lógica e Engenharia")
 st.markdown("Plataforma web avançada para avaliação de sequências lógicas, séries infinitas e matrizes lineares.")
 
-# Definição e ancoragem das Abas estruturadas
+# Definição das Abas estruturadas
 aba1, aba2, aba3 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Lógica Proposicional"])
 
 # LÓGICA DA ABA 1: SEQUÊNCIAS E SÉRIES
 with aba1:
     st.header("Análise Gráfica de Curvas e Convergência")
-    texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula:", "1, 0.5, 0.25, 0.125")
+    texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula:", "1, 2, 3, 4")
     
     if st.button("Analisar Sequência"):
         try:
@@ -235,30 +238,37 @@ with aba1:
         except Exception:
             st.error("Erro na leitura. Verifique se utilizou apenas números, pontos ou frações.")
 
-# LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES
+# LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES (COMPLEMENTADA COM COLUNAS E GRÁFICOS)
 with aba2:
-    st.header("Cálculo Matricial Linear")
+    st.header("Cálculo Matricial e Mapas de Intensidade")
     st.markdown("Insira os elementos da matriz. Use **vírgulas** para colunas e **ponto e vírgula** para quebrar as linhas.")
     
-    # Matriz exemplo 3x3 pré-carregada na caixa de texto
-    entrada_matriz = st.text_area("Estrutura da Matriz:", "1, 2, 3;\n0, 1, 4;\n5, 6, 0")
+    # Exemplo padrão: malha de gradiente numérico para o gráfico ficar bonito
+    entrada_matriz = st.text_area("Estrutura da Matriz:", "1, 2, 3;\n4, 5, 6;\n7, 8, 9")
     
-    if st.button("Calcular Propriedades da Matriz"):
-        relatorio, transposta = processar_matriz_textual(entrada_matriz)
+    if st.button("Calcular Propriedades e Plotar Matriz"):
+        relatorio, transposta, fig_matriz = processar_matriz_textual(entrada_matriz)
         
         if transposta is None:
             st.error(relatorio)
         else:
-            st.success("### Resultados da Análise Matricial")
-            st.markdown(relatorio)
+            col_mat1, col_mat2 = st.columns(2)
             
-            # Formatação textual alinhada da matriz transposta calculada
-            txt_transposta = ""
-            for linha in transposta:
-                txt_transposta += " | ".join(f"{x:6}" for x in linha) + "\n"
+            with col_mat1:
+                st.success("### Resultados Analíticos")
+                st.markdown(relatorio)
                 
-            st.markdown("**Matriz Transposta Resultante:**")
-            st.code(txt_transposta, language="text")
+                txt_transposta = ""
+                for linha in transposta:
+                    txt_transposta += " | ".join(f"{x:6}" for x in linha) + "\n"
+                    
+                st.markdown("**Matriz Transposta Resultante:**")
+                st.code(txt_transposta, language="text")
+                
+            with col_mat2:
+                # Exibe o gráfico bidimensional da matriz no site
+                if fig_matriz:
+                    st.pyplot(fig_matriz)
 
 # LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL
 with aba3:
@@ -282,10 +292,10 @@ with aba3:
                     
                     if "<->" in expr:
                         partes = expr.split("<->")
-                        expr = f"({partes[0].strip()}) == ({partes[1].strip()})"
+                        expr = f"({partes.strip()}) == ({partes.strip()})"
                     elif "->" in expr:
                         partes = expr.split("->")
-                        expr = f"not ({partes[0].strip()}) or ({partes[1].strip()})"
+                        expr = f"not ({partes.strip()}) or ({partes.strip()})"
 
                     resultado_bool = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
