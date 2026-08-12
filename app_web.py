@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V13.0 (Exportação de Relatórios e Correção de Escopo Excel)
+Versão: V14.0 (Gráficos de Projeção 3D e Gráficos de Barras Integrados)
 Ano: 2026
 """
 
@@ -11,6 +11,7 @@ from fractions import Fraction
 import itertools
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 # Configuração global da página Web
 st.set_page_config(
@@ -19,7 +20,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV CORRIGIDO) ---
+# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
@@ -30,27 +31,25 @@ def extrair_dados_do_arquivo(arquivo_carregado):
             
         dados = df.values.tolist()
         
-        # Correção do escopo de validação de dimensões
         if len(dados) == 1:
             return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         if len(dados[0]) == 1:
             return [float(linha[0]) for linha in dados if pd.notna(linha[0])], "sequencia"
         
-        # Caso contrário, trata como uma matriz completa de engenharia
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo. Certifique-se de que a planilha possui apenas números.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES ---
+# --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES (AGORA COM SUPERFÍCIE 3D) ---
 def processar_matriz_pura(matriz):
     try:
         num_linhas = len(matriz)
         num_colunas = len(matriz[0]) if num_linhas > 0 else 0
         
         if not all(len(l) == num_colunas for l in matriz):
-            return "Erro: A matriz possui linhas com comprimentos desalinhados ou diferentes.", None, None
+            return "Erro: A matriz possui linhas com comprimentos desalinhados.", None, None
             
         transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
         
@@ -66,21 +65,29 @@ def processar_matriz_pura(matriz):
                 
         relatorio = f"**Dimensão Identificada:** {num_linhas}x{num_colunas}  \n**Determinante Matemático:** {det_txt}"
         
-        fig, ax = plt.subplots(figsize=(4.5, 3.5))
-        cax = ax.matshow(matriz, cmap="viridis")
-        fig.colorbar(cax, ax=ax, label="Escala de Valores")
+        # --- GERAÇÃO DO GRÁFICO DE SUPERFÍCIE 3D DE ENGENHARIA ---
+        fig = plt.figure(figsize=(5, 4))
+        ax = fig.add_subplot(111, projection='3d')
         
-        for i in range(num_linhas):
-            for j in range(num_colunas):
-                ax.text(j, i, f"{round(matriz[i][j], 2)}", ha='center', va='center', 
-                        color='white' if matriz[i][j] < (max(max(matriz)) / 2) else 'black', fontweight='bold')
-                        
-        ax.set_title("Distribuição Espacial de Intensidade (Matriz)", pad=15, fontsize=10, fontweight="bold")
-        fig.tight_layout()
+        # Cria as coordenadas X e Y com base no tamanho da matriz
+        x = np.arange(0, num_colunas, 1)
+        y = np.arange(0, num_linhas, 1)
+        X, Y = np.meshgrid(x, y)
+        Z = np.array(matriz)
+        
+        # Plota a superfície tridimensional com gradiente de cores (cmap)
+        surf = ax.plot_surface(X, Y, Z, cmap="coolwarm", edgecolor='none', alpha=0.9)
+        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5, label="Escala Z")
+        
+        ax.set_title("Projeção Topográfica de Superfície 3D", fontsize=9, fontweight="bold", pad=10)
+        ax.set_xlabel("Colunas (X)", fontsize=7)
+        ax.set_ylabel("Linhas (Y)", fontsize=7)
+        ax.set_zlabel("Valores (Z)", fontsize=7)
+        ax.tick_params(labelsize=6)
         
         return relatorio, transposta, fig
-    except Exception:
-        return "Erro analítico interno no processamento da matriz estruturada.", None, None
+    except Exception as e:
+        return f"Erro analítico interno: {str(e)}", None, None
 
 # --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
@@ -199,7 +206,7 @@ st.sidebar.title("⚙️ Painel de Controle")
 st.sidebar.markdown("---")
 st.sidebar.write("**Desenvolvido por:**")
 st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V13.0 (Função de Exportar)")
+st.sidebar.write("**Versão:** V14.0 (Modelos 3D)")
 
 st.title("📊 Central Computacional de Lógica e Engenharia")
 st.markdown("Plataforma web avançada para avaliação de sequências lógicas, séries infinitas e matrizes lineares.")
@@ -214,14 +221,14 @@ if arquivo_usuario is not None:
     if tipo_dado == "sequencia":
         st.info(f"Planilha detectada! Uma sequência de {len(dados_planilha)} números foi importada para a Aba 1.")
     elif tipo_dado == "matriz":
-        st.info(f"Planilha detectada! Uma matriz de tamanho {len(dados_planilha)}x{len(dados_planilha[0])} foi importada para a Aba 2.")
+        st.info(f"Planilha detectada! Uma matriz foi importada para a Aba 2.")
 
 # Definição das Abas estruturadas
 aba1, aba2, aba3 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Lógica Proposicional"])
 
-# LÓGICA DA ABA 1: SEQUÊNCIAS E SÉRIES
+# LÓGICA DA ABA 1: SEQUÊNCIAS E SÉRIES (PROJEÇÃO DUPLA DE GRÁFICOS)
 with aba1:
-    st.header("Análise Gráfica de Curvas e Convergência")
+    st.header("Análise Gráfica de Curvas e Tendências")
     valor_padrao_seq = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
     texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula (ou use o arquivo acima):", valor_padrao_seq)
     
@@ -231,39 +238,60 @@ with aba1:
             sequencia_limpa = [int(num) if num.is_integer() else num for num in sequencia]
             
             tipo_padrao, proximo_num = identificar_padrao(sequencia_limpa)
-            col1, col2 = st.columns(2)
             
-            with col1:
-                st.success(f"### {tipo_padrao}")
-                if proximo_num is not None:
-                    st.metric(label="Próximo Termo Projetado (T+1)", value=str(proximo_num))
+            st.success(f"### {tipo_padrao}")
+            if proximo_num is not None:
+                st.metric(label="Próximo Termo Projetado (T+1)", value=str(proximo_num))
             
-            with col2:
-                fig, ax = plt.subplots(figsize=(5, 3.5))
+            # Divide o espaço em duas colunas para mostrar dois tipos de gráficos
+            g_col1, g_col2 = st.columns(2)
+            
+            with g_col1:
+                # 1. Gráfico Clássico de Linha
+                fig1, ax1 = plt.subplots(figsize=(4.5, 3.2))
                 eixo_x_original = list(range(1, len(sequencia_limpa) + 1))
-                ax.plot(eixo_x_original, sequencia_limpa, marker='o', color='#2980b9', linewidth=2, label="Dados")
+                ax1.plot(eixo_x_original, sequencia_limpa, marker='o', color='#2980b9', linewidth=2, label="Dados")
                 if proximo_num is not None:
                     eixo_x_proximo = len(sequencia_limpa) + 1
-                    ax.plot([eixo_x_original[-1], eixo_x_proximo], [sequencia_limpa[-1], proximo_num], linestyle='--', color='#27ae60')
-                    ax.scatter(eixo_x_proximo, proximo_num, color='#27ae60', zorder=5, s=60, label=f"Proximo ({proximo_num})")
-                ax.set_title("Curva do Comportamento Numérico")
-                ax.grid(True, linestyle=':', alpha=0.6)
-                ax.legend()
-                st.pyplot(fig)
+                    ax1.plot([eixo_x_original[-1], eixo_x_proximo], [sequencia_limpa[-1], proximo_num], linestyle='--', color='#27ae60')
+                    ax1.scatter(eixo_x_proximo, proximo_num, color='#27ae60', zorder=5, s=50, label=f"Prox ({proximo_num})")
+                ax1.set_title("Curva de Tendência Contínua", fontsize=9, fontweight="bold")
+                ax1.grid(True, linestyle=':', alpha=0.6)
+                ax1.legend(fontsize=7)
+                st.pyplot(fig1)
+                
+            with g_col2:
+                # 2. NOVO: Gráfico de Barras de Intensidade
+                fig2, ax2 = plt.subplots(figsize=(4.5, 3.2))
+                termos_labels = [f"T{i}" for i in eixo_x_original]
+                valores_barras = list(sequencia_limpa)
+                cores_barras = ['#3498db'] * len(valores_barras)
+                
+                if proximo_num is not None:
+                    termos_labels.append("T+1")
+                    valores_barras.append(proximo_num)
+                    cores_barras.append('#2ecc71') # Barra do próximo número em verde
+                    
+                ax2.bar(termos_labels, valores_barras, color=cores_barras, edgecolor='grey', alpha=0.85)
+                ax2.set_title("Histograma Discreto de Intensidade", fontsize=9, fontweight="bold")
+                ax2.grid(True, axis='y', linestyle=':', alpha=0.6)
+                st.pyplot(fig2)
+                
         except Exception:
             st.error("Erro na leitura. Verifique os valores inseridos.")
 
 # LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES
 with aba2:
-    st.header("Cálculo Matricial e Mapas de Intensidade")
+    st.header("Cálculo Matricial e Topografia 3D")
     if tipo_dado == "matriz":
         valor_padrao_matriz = ";\n".join(", ".join(str(x) for x in linha) for linha in dados_planilha)
     else:
-        valor_padrao_matriz = "1, 2, 3;\n4, 5, 6;\n7, 8, 9"
+        # Carrega uma matriz de exemplo que forma uma pirâmide bonita em 3D
+        valor_padrao_matriz = "0, 1, 2, 1, 0;\n1, 3, 4, 3, 1;\n2, 4, 5, 4, 2;\n1, 3, 4, 3, 1;\n0, 1, 2, 1, 0"
         
-    entrada_matriz = st.text_area("Estrutura da Matriz (Texto ou importada automaticamente da planilha):", valor_padrao_matriz, height=120)
+    entrada_matriz = st.text_area("Estrutura da Matriz (Texto ou importada da planilha):", valor_padrao_matriz, height=120)
     
-    if st.button("Calcular Propriedades e Plotar Matriz"):
+    if st.button("Calcular Propriedades e Plotar 3D"):
         try:
             linhas_puras = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
             matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas_puras]
@@ -283,10 +311,10 @@ with aba2:
                 with col_mat2:
                     if fig_matriz:
                         st.pyplot(fig_matriz)
-        except Exception:
-            st.error("Formatação inválida da matriz.")
+        except Exception as ex:
+            st.error(f"Formatação inválida da matriz: {str(ex)}")
 
-# LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL (NOVA FUNÇÃO DE EXPORTAR COMPILADA)
+# LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL
 with aba3:
     st.header("Gerador Analítico de Tabela Verdade")
     expressao_original = st.text_input("Digite a proposição composto:", "(A AND B) -> NOT C", key="logica_input")
@@ -306,10 +334,10 @@ with aba3:
                     expr = expressao_original.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "<->" in expr:
                         partes = expr.split("<->")
-                        expr = f"({partes[0].strip()}) == ({partes[1].strip()})"
+                        expr = f"({partes.strip()}) == ({partes.strip()})"
                     elif "->" in expr:
                         partes = expr.split("->")
-                        expr = f"not ({partes[0].strip()}) or ({partes[1].strip()})"
+                        expr = f"not ({partes.strip()}) or ({partes.strip()})"
 
                     resultado_bool = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
@@ -317,7 +345,6 @@ with aba3:
                 
                 st.code(texto_final, language="text")
                 
-                # NOVO BOTÃO DE EXPORTAÇÃO MÁGICO DO STREAMLIT
                 st.download_button(
                     label="📥 Baixar Tabela Verdade (.txt)",
                     data=texto_final,
