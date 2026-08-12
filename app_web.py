@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V12.1 (Upload de Arquivos Excel e CSV - Correção de Escopo)
+Versão: V13.0 (Exportação de Relatórios e Correção de Escopo Excel)
 Ano: 2026
 """
 
@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
+# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV CORRIGIDO) ---
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
@@ -30,7 +30,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
             
         dados = df.values.tolist()
         
-        # Validação se é uma sequência em linha ou coluna única
+        # Correção do escopo de validação de dimensões
         if len(dados) == 1:
             return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         if len(dados[0]) == 1:
@@ -199,12 +199,12 @@ st.sidebar.title("⚙️ Painel de Controle")
 st.sidebar.markdown("---")
 st.sidebar.write("**Desenvolvido por:**")
 st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V12.1 (Upload Ativo)")
+st.sidebar.write("**Versão:** V13.0 (Função de Exportar)")
 
 st.title("📊 Central Computacional de Lógica e Engenharia")
 st.markdown("Plataforma web avançada para avaliação de sequências lógicas, séries infinitas e matrizes lineares.")
 
-# NOVO COMPONENTE: Caixa para arrastar e carregar planilhas do Excel ou CSV
+# Componente de Upload de Planilhas
 st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
 arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
 
@@ -286,10 +286,10 @@ with aba2:
         except Exception:
             st.error("Formatação inválida da matriz.")
 
-# LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL
+# LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL (NOVA FUNÇÃO DE EXPORTAR COMPILADA)
 with aba3:
     st.header("Gerador Analítico de Tabela Verdade")
-    expressao_original = st.text_input("Digite a proposição composto:", "(A AND B) -> NOT C")
+    expressao_original = st.text_input("Digite a proposição composto:", "(A AND B) -> NOT C", key="logica_input")
     
     if st.button("Gerar Tabela Verdade"):
         try:
@@ -314,6 +314,15 @@ with aba3:
                     resultado_bool = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if resultado_bool else 'F'}\n"
+                
                 st.code(texto_final, language="text")
+                
+                # NOVO BOTÃO DE EXPORTAÇÃO MÁGICO DO STREAMLIT
+                st.download_button(
+                    label="📥 Baixar Tabela Verdade (.txt)",
+                    data=texto_final,
+                    file_name="tabela_verdade_engenharia.txt",
+                    mime="text/plain"
+                )
         except Exception:
             st.error("Erro na sintaxe proposicional.")
