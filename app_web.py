@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V11.0 (Mapas de Calor para Matrizes e Gráficos de Engenharia)
+Versão: V12.1 (Upload de Arquivos Excel e CSV - Correção de Escopo)
 Ano: 2026
 """
 
@@ -10,6 +10,7 @@ import math
 from fractions import Fraction
 import itertools
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Configuração global da página Web
 st.set_page_config(
@@ -18,27 +19,39 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES ---
-def processar_matriz_textual(texto_matriz):
+# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
+def extrair_dados_do_arquivo(arquivo_carregado):
     try:
-        # Quebra as linhas pelo ponto e vírgula
-        linhas_puras = [l.strip() for l in texto_matriz.split(";") if l.strip() != ""]
-        matriz = []
+        nome_arquivo = arquivo_carregado.name
+        if nome_arquivo.endswith('.csv'):
+            df = pd.read_csv(arquivo_carregado, header=None)
+        else:
+            df = pd.read_excel(arquivo_carregado, header=None)
+            
+        dados = df.values.tolist()
         
-        for linha in linhas_puras:
-            # Quebra os elementos de cada linha por vírgula
-            valores = [float(x.strip()) for x in linha.split(",") if x.strip() != ""]
-            if valores:
-                matriz.append(valores)
-                
+        # Validação se é uma sequência em linha ou coluna única
+        if len(dados) == 1:
+            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+        if len(dados[0]) == 1:
+            return [float(linha[0]) for linha in dados if pd.notna(linha[0])], "sequencia"
+        
+        # Caso contrário, trata como uma matriz completa de engenharia
+        matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
+        return matriz_limpa, "matriz"
+    except Exception:
+        st.error("Erro ao ler o arquivo. Certifique-se de que a planilha possui apenas números.")
+        return None, None
+
+# --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES ---
+def processar_matriz_pura(matriz):
+    try:
         num_linhas = len(matriz)
         num_colunas = len(matriz[0]) if num_linhas > 0 else 0
         
-        # Validação de consistência geométrica da matriz
         if not all(len(l) == num_colunas for l in matriz):
             return "Erro: A matriz possui linhas com comprimentos desalinhados ou diferentes.", None, None
             
-        # Cálculo da Matriz Transposta (linhas viram colunas)
         transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
         
         det_txt = "N/A (Apenas matrizes quadradas 2x2 ou 3x3 possuem determinante estável)."
@@ -53,13 +66,10 @@ def processar_matriz_textual(texto_matriz):
                 
         relatorio = f"**Dimensão Identificada:** {num_linhas}x{num_colunas}  \n**Determinante Matemático:** {det_txt}"
         
-        # --- GERAÇÃO DO GRÁFICO DA MATRIZ (MAPA DE CALOR) ---
         fig, ax = plt.subplots(figsize=(4.5, 3.5))
-        # matshow plota os dados como uma imagem colorida de engenharia (Gradiente Viridis)
         cax = ax.matshow(matriz, cmap="viridis")
         fig.colorbar(cax, ax=ax, label="Escala de Valores")
         
-        # Adiciona os valores numéricos como texto dentro de cada quadrado do gráfico
         for i in range(num_linhas):
             for j in range(num_colunas):
                 ax.text(j, i, f"{round(matriz[i][j], 2)}", ha='center', va='center', 
@@ -70,23 +80,23 @@ def processar_matriz_textual(texto_matriz):
         
         return relatorio, transposta, fig
     except Exception:
-        return "Erro analítico: Verifique se utilizou vírgulas para separar colunas e ponto e vírgula para linhas.", None, None
+        return "Erro analítico interno no processamento da matriz estruturada.", None, None
 
 # --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
     n = len(sequencia)
     if n < 3:
         return ""
-        
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)):
         return "\n\n**Análise Estatística de Série:** Série Harmônica Divergente ($\sum 1/n$).  \n*Comportamento:* A soma dos infinitos termos diverge lentamente para o infinito."
-        
     if all(x != 0 for x in sequencia):
-        razao = sequencia[1] / sequencia[0]
-        if abs(razao) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - razao) < 0.01 for i in range(1, n)):
-            soma_limite = sequencia[0] / (1 - razao)
-            return f"\n\n**Análise Estatística de Série:** Série Geométrica Convergente.  \n*Comportamento:* Estabiliza no limite numérico real exato de **{round(soma_limite, 4)}** se somada até o infinito."
-            
+        try:
+            razao = sequencia[1] / sequencia[0]
+            if abs(razao) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - razao) < 0.01 for i in range(1, n)):
+                soma_limite = sequencia[0] / (1 - razao)
+                return f"\n\n**Análise Estatística de Série:** Série Geométrica Convergente.  \n*Comportamento:* Estabiliza no limite numérico real exato de **{round(soma_limite, 4)}** se somada até o infinito."
+        except Exception:
+            pass
     return ""
 
 # --- SISTEMA 3: LEITOR DE PADRÕES SEQUENCIAIS ---
@@ -185,15 +195,26 @@ def identificar_padrao(sequencia):
 
 # --- INTERFACE VISUAL PRINCIPAL DA INTERNET (STREAMLIT) ---
 
-# Barra lateral corporativa com informações de autoria
 st.sidebar.title("⚙️ Painel de Controle")
 st.sidebar.markdown("---")
 st.sidebar.write("**Desenvolvido por:**")
 st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V11.0 (Mapas de Matrizes)")
+st.sidebar.write("**Versão:** V12.1 (Upload Ativo)")
 
 st.title("📊 Central Computacional de Lógica e Engenharia")
 st.markdown("Plataforma web avançada para avaliação de sequências lógicas, séries infinitas e matrizes lineares.")
+
+# NOVO COMPONENTE: Caixa para arrastar e carregar planilhas do Excel ou CSV
+st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
+arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
+
+dados_planilha, tipo_dado = None, None
+if arquivo_usuario is not None:
+    dados_planilha, tipo_dado = extrair_dados_do_arquivo(arquivo_usuario)
+    if tipo_dado == "sequencia":
+        st.info(f"Planilha detectada! Uma sequência de {len(dados_planilha)} números foi importada para a Aba 1.")
+    elif tipo_dado == "matriz":
+        st.info(f"Planilha detectada! Uma matriz de tamanho {len(dados_planilha)}x{len(dados_planilha[0])} foi importada para a Aba 2.")
 
 # Definição das Abas estruturadas
 aba1, aba2, aba3 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Lógica Proposicional"])
@@ -201,21 +222,15 @@ aba1, aba2, aba3 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com 
 # LÓGICA DA ABA 1: SEQUÊNCIAS E SÉRIES
 with aba1:
     st.header("Análise Gráfica de Curvas e Convergência")
-    texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula:", "1, 2, 3, 4")
+    valor_padrao_seq = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
+    texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula (ou use o arquivo acima):", valor_padrao_seq)
     
     if st.button("Analisar Sequência"):
         try:
-            sequencia = []
-            for x in texto_usuario.split(","):
-                if x.strip() != "":
-                    termo = x.strip()
-                    if "/" in termo:
-                        sequencia.append(float(Fraction(termo)))
-                    else:
-                        num = float(termo)
-                        sequencia.append(int(num) if num.is_integer() else num)
-                        
-            tipo_padrao, proximo_num = identificar_padrao(sequencia)
+            sequencia = [float(Fraction(x.strip())) if "/" in x else float(x.strip()) for x in texto_usuario.split(",") if x.strip() != ""]
+            sequencia_limpa = [int(num) if num.is_integer() else num for num in sequencia]
+            
+            tipo_padrao, proximo_num = identificar_padrao(sequencia_limpa)
             col1, col2 = st.columns(2)
             
             with col1:
@@ -225,50 +240,51 @@ with aba1:
             
             with col2:
                 fig, ax = plt.subplots(figsize=(5, 3.5))
-                eixo_x_original = list(range(1, len(sequencia) + 1))
-                ax.plot(eixo_x_original, sequencia, marker='o', color='#2980b9', linewidth=2, label="Dados")
+                eixo_x_original = list(range(1, len(sequencia_limpa) + 1))
+                ax.plot(eixo_x_original, sequencia_limpa, marker='o', color='#2980b9', linewidth=2, label="Dados")
                 if proximo_num is not None:
-                    eixo_x_proximo = len(sequencia) + 1
-                    ax.plot([eixo_x_original[-1], eixo_x_proximo], [sequencia[-1], proximo_num], linestyle='--', color='#27ae60')
+                    eixo_x_proximo = len(sequencia_limpa) + 1
+                    ax.plot([eixo_x_original[-1], eixo_x_proximo], [sequencia_limpa[-1], proximo_num], linestyle='--', color='#27ae60')
                     ax.scatter(eixo_x_proximo, proximo_num, color='#27ae60', zorder=5, s=60, label=f"Proximo ({proximo_num})")
                 ax.set_title("Curva do Comportamento Numérico")
                 ax.grid(True, linestyle=':', alpha=0.6)
                 ax.legend()
                 st.pyplot(fig)
         except Exception:
-            st.error("Erro na leitura. Verifique se utilizou apenas números, pontos ou frações.")
+            st.error("Erro na leitura. Verifique os valores inseridos.")
 
-# LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES (COMPLEMENTADA COM COLUNAS E GRÁFICOS)
+# LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES
 with aba2:
     st.header("Cálculo Matricial e Mapas de Intensidade")
-    st.markdown("Insira os elementos da matriz. Use **vírgulas** para colunas e **ponto e vírgula** para quebrar as linhas.")
-    
-    # Exemplo padrão: malha de gradiente numérico para o gráfico ficar bonito
-    entrada_matriz = st.text_area("Estrutura da Matriz:", "1, 2, 3;\n4, 5, 6;\n7, 8, 9")
+    if tipo_dado == "matriz":
+        valor_padrao_matriz = ";\n".join(", ".join(str(x) for x in linha) for linha in dados_planilha)
+    else:
+        valor_padrao_matriz = "1, 2, 3;\n4, 5, 6;\n7, 8, 9"
+        
+    entrada_matriz = st.text_area("Estrutura da Matriz (Texto ou importada automaticamente da planilha):", valor_padrao_matriz, height=120)
     
     if st.button("Calcular Propriedades e Plotar Matriz"):
-        relatorio, transposta, fig_matriz = processar_matriz_textual(entrada_matriz)
-        
-        if transposta is None:
-            st.error(relatorio)
-        else:
-            col_mat1, col_mat2 = st.columns(2)
+        try:
+            linhas_puras = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
+            matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas_puras]
             
-            with col_mat1:
-                st.success("### Resultados Analíticos")
-                st.markdown(relatorio)
-                
-                txt_transposta = ""
-                for linha in transposta:
-                    txt_transposta += " | ".join(f"{x:6}" for x in linha) + "\n"
-                    
-                st.markdown("**Matriz Transposta Resultante:**")
-                st.code(txt_transposta, language="text")
-                
-            with col_mat2:
-                # Exibe o gráfico bidimensional da matriz no site
-                if fig_matriz:
-                    st.pyplot(fig_matriz)
+            relatorio, transposta, fig_matriz = processar_matriz_pura(matriz_final)
+            
+            if transposta is None:
+                st.error(relatorio)
+            else:
+                col_mat1, col_mat2 = st.columns(2)
+                with col_mat1:
+                    st.success("### Resultados Analíticos")
+                    st.markdown(relatorio)
+                    txt_transposta = "".join(" | ".join(f"{x:6}" for x in linha) + "\n" for linha in transposta)
+                    st.markdown("**Matriz Transposta Resultante:**")
+                    st.code(txt_transposta, language="text")
+                with col_mat2:
+                    if fig_matriz:
+                        st.pyplot(fig_matriz)
+        except Exception:
+            st.error("Formatação inválida da matriz.")
 
 # LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL
 with aba3:
@@ -279,7 +295,7 @@ with aba3:
         try:
             variaveis = sorted(list(set([c for c in expressao_original if c.isalpha() and c.isupper()])))
             if not variaveis:
-                st.warning("Insira proposições com letras maiúsculas (A, B, C...).")
+                st.warning("Insira proposições com letras maiúsculas.")
             else:
                 cabecalho = " | ".join(f" {v} " for v in variaveis) + f" |  {expressao_original} \n"
                 texto_final = cabecalho + ("-" * len(cabecalho)) + "\n"
@@ -287,20 +303,17 @@ with aba3:
                 
                 for comb in combinacoes:
                     contexto = dict(zip(variaveis, comb))
-                    expr = expressao_original.upper()
-                    expr = expr.replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
-                    
+                    expr = expressao_original.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "<->" in expr:
                         partes = expr.split("<->")
-                        expr = f"({partes.strip()}) == ({partes.strip()})"
+                        expr = f"({partes[0].strip()}) == ({partes[1].strip()})"
                     elif "->" in expr:
                         partes = expr.split("->")
-                        expr = f"not ({partes.strip()}) or ({partes.strip()})"
+                        expr = f"not ({partes[0].strip()}) or ({partes[1].strip()})"
 
                     resultado_bool = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if resultado_bool else 'F'}\n"
-                
                 st.code(texto_final, language="text")
         except Exception:
-            st.error("Erro na sintaxe proposicional. Revise os conectivos lógicos e parênteses.")
+            st.error("Erro na sintaxe proposicional.")
