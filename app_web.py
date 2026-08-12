@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V17.1 (Versão Consolidada de Engenharia e ADS - Sem Bugs)
+Versão: V17.2 (Versão Consolidada de Engenharia e ADS - Ajuste Try/Except)
 Ano: 2026
 """
 
@@ -21,7 +21,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ARQUITETURA DE BANCO DE DADOS SIMULADA (PADRÃO ADS / ENGENHARIA) ---
+# --- ARQUITETURA DE BANCO DE DADOS SIMULADA ---
 if "tabela_usuarios" not in st.session_state:
     st.session_state["tabela_usuarios"] = {
         "marcio": "admin123",
@@ -44,7 +44,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
             df = pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados if pd.notna(x)], "sequencia"
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
     except Exception:
@@ -56,7 +56,7 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
     try:
         matriz = [[x * escalar_mult for x in linha] for linha in matriz]
         num_linhas = len(matriz)
-        num_colunas = len(matriz[0]) if num_linhas > 0 else 0
+        num_colunas = len(matriz) if num_linhas > 0 else 0
         if not all(len(l) == num_colunas for l in matriz):
             return "Erro: A matriz possui linhas com comprimentos desalinhados.", None, None, None
             
@@ -73,11 +73,11 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         det_txt = "N/A"
         if num_linhas == num_colunas:
             if num_linhas == 2:
-                det = (matriz[0][0] * matriz[1][1]) - (matriz[0][1] * matriz[1][0])
+                det = (matriz * matriz) - (matriz * matriz)
                 det_txt = f"{round(det, 4)}"
             elif num_linhas == 3:
-                d1 = (matriz[0][0]*matriz[1][1]*matriz[2][2]) + (matriz[0][1]*matriz[1][2]*matriz[2][0]) + (matriz[0][2]*matriz[1][0]*matriz[2][1])
-                d2 = (matriz[0][2]*matriz[1][1]*matriz[2][0]) + (matriz[0][0]*matriz[1][2]*matriz[2][1]) + (matriz[0][1]*matriz[1][0]*matriz[2][2])
+                d1 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
+                d2 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
                 det_txt = f"{round(d1 - d2, 4)}"
                 
         relatorio = (
@@ -108,9 +108,9 @@ def checar_convergencia_serie(sequencia):
         return "\n\n**Série:** Harmônica Divergente ($\sum 1/n$)."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                soma_limite = sequencia[0] / (1 - r_prop)
+                soma_limite = sequencia / (1 - r_prop)
                 return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(soma_limite, 4)}**."
         except Exception:
             pass
@@ -144,32 +144,28 @@ def identificar_padrao(sequencia):
     prop_txt = analisar_propriedades(sequencia)
     serie_txt = checar_convergencia_serie(sequencia)
 
-    # 1. TESTE: Fatorial (Seguro elemento a elemento)
     if all(isinstance(x, int) and x > 0 for x in sequencia):
-        p_termo = sequencia[0]
+        p_termo = sequencia
         fatoriais_validos = [i for i in range(1, 15) if math.factorial(i) == p_termo]
         if fatoriais_validos:
-            n_inicio = fatoriais_validos[0]
+            n_inicio = fatoriais_validos
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 return "Sequência Fatorial (n!)", math.factorial(n_inicio + n)
 
-    # 2. TESTE: Quadrados Perfeitos (Seguro elemento a elemento)
     if all(x >= 0 for x in sequencia):
-        p_termo = sequencia[0]
+        p_termo = sequencia
         if (p_termo**0.5).is_integer():
             r_start = int(p_termo**0.5)
             if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
                 return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
 
-    # 3. TESTE: Cubos Perfeitos (Seguro elemento a elemento)
-    p_termo = sequencia[0]
+    p_termo = sequencia
     raiz_cubica_primeiro = round(p_termo**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
         return "Sequência de Cubos Perfeitos (n³)", (raiz_cubica_primeiro + n)**3
 
-    # 4. TESTE: Números Triangulares
     try:
-        det = 1 + 8 * sequencia[0]
+        det = 1 + 8 * sequencia
         if det >= 0 and (det**0.5).is_integer():
             n_start = int((-1 + (det**0.5)) / 2)
             if all(sequencia[i] == ((n_start + i) * ((n_start + i) + 1)) // 2 for i in range(n)):
@@ -178,27 +174,24 @@ def identificar_padrao(sequencia):
     except Exception:
         pass
 
-    # 5. TESTE: Fibonacci
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
 
-    # 6. TESTE: Progressão Aritmética (PA)
     if n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt} {prop_txt}", sequencia[-1] + razao_pa
 
-    # 7. TESTE: Progressão Geométrica (PG)
     if all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             nome = "Sequência Geométrica Alternada" if razao_pg < 0 else "Progressão Geométrica (PG)"
             return f"{nome} | Razão: *({round(razao_pg, 4)}){serie_txt} {prop_txt}", int(sequencia[-1] * razao_pg)
 
     dif_primeira = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_segunda = [dif_primeira[i] - dif_primeira[i-1] for i in range(1, len(dif_primeira))]
-    if len(dif_segunda) > 0 and all(d == dif_segunda[0] for d in dif_segunda):
-        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_primeira[-1] + dif_segunda[0]
+    if len(dif_segunda) > 0 and all(d == dif_segunda for d in dif_segunda):
+        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_primeira[-1] + dif_segunda
 
     return ("Padrão complexo não reconhecido.", None)
 
@@ -266,12 +259,15 @@ else:
         st.header("Cálculo Matricial Linear")
         fator_escalar = st.number_input("Multiplicador Escalar (K):", value=1.0, step=0.5)
         entrada_matriz = st.text_area("Estrutura da Matriz:", "0,1,2,1,0;\n1,3,4,3,1;\n2,4,5,4,2")
+        
         if st.button("Processar Matriz 3D"):
             try:
                 linhas = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
                 matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas]
-                # COLA ESTA LINHA CORRIGIDA NO LUGAR:
-relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, escalar_mult=fator_escalar)
+                
+                # CHAMADA DE FUNÇÃO TOTALMENTE CORRIGIDA COM OS PARÂMETROS SINCRONIZADOS:
+                relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, escalar_mult=fator_escalar)
+                
                 st.markdown(relatorio)
                 if fig_matriz:
                     st.pyplot(fig_matriz)
@@ -300,7 +296,7 @@ relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(m
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        expr = f"not ({p.strip()}) or ({p.strip()})"
                     res = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if res else 'F'}\n"
