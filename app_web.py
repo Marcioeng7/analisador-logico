@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V8.0 (Versão Web de Alta Performance - Streamlit)
+Versão: V9.0 (Inclusão de Cubos, Triangulares e Números de Lucas)
 Ano: 2026
 """
 
@@ -11,7 +11,7 @@ from fractions import Fraction
 import itertools
 import matplotlib.pyplot as plt
 
-# Configuração da página Web (Muda o título e o ícone na aba do navegador)
+# Configuração da página Web
 st.set_page_config(
     page_title="Analisador de Padrões Lógicos", 
     page_icon="📊", 
@@ -56,19 +56,43 @@ def identificar_padrao(sequencia):
                 proximo = math.factorial(n_inicio + n)
                 return "Sequência Fatorial (n!)\nRegra: Multiplicação sucessiva.", proximo
 
-    # 2. TESTE: Quadrados Perfeitos
+    # 2. TESTE: Quadrados Perfeitos (n²)
     if all(x >= 0 for x in sequencia) and (sequencia[0]**0.5).is_integer():
         r_start = int(sequencia[0]**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
             proximo = (r_start + n)**2
             return "Sequência de Quadrados Perfeitos (n²)\nRegra: Potências quadráticas.", proximo
 
-    # 3. TESTE: Sequência de Fibonacci
+    # 3. NOVO TESTE: Cubos Perfeitos (n³)
+    raiz_cubica_primeiro = round(sequencia[0]**(1/3))
+    if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
+        proximo = (raiz_cubica_primeiro + n)**3
+        return "Sequência de Cubos Perfeitos (n³)\nRegra: Números elevados ao cubo.", proximo
+
+    # 4. NOVO TESTE: Números Triangulares [n*(n+1)/2]
+    try:
+        det = 1 + 8 * sequencia[0]
+        if det >= 0 and (det**0.5).is_integer():
+            n_start = int((-1 + (det**0.5)) / 2)
+            if all(sequencia[i] == ((n_start + i) * ((n_start + i) + 1)) // 2 for i in range(n)):
+                n_prox = n_start + n
+                proximo = (n_prox * (n_prox + 1)) // 2
+                return "Sequência de Números Triangulares\nRegra: Somatório de pontos geométricos.", proximo
+    except Exception:
+        pass
+
+    # 5. TESTE: Sequência de Fibonacci
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         proximo = sequencia[-1] + sequencia[-2]
         return "Sequência de Fibonacci\nRegra: Soma dos dois termos anteriores.", proximo
 
-    # 4. TESTE: Progressão Aritmética (PA)
+    # 6. NOVO TESTE: Sequência de Lucas (Começa com 2 e 1)
+    if sequencia[0] == 2 and sequencia[1] == 1:
+        if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
+            proximo = sequencia[-1] + sequencia[-2]
+            return "Sequência de Lucas\nRegra: Variação de Fibonacci iniciando em 2 e 1.", proximo
+
+    # 7. TESTE: Progressão Aritmética (PA)
     if n >= 2:
         razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
@@ -76,7 +100,7 @@ def identificar_padrao(sequencia):
             proximo = int(proximo) if isinstance(proximo, float) and proximo.is_integer() else proximo
             return f"Progressão Aritmética (PA)\nRazão: {'+' if razao_pa >= 0 else ''}{razao_pa}\n\n{prop_txt}", proximo
 
-    # 5. TESTE: Progressão Geométrica (PG)
+    # 8. TESTE: Progressão Geométrica (PG)
     if all(x != 0 for x in sequencia) and n >= 2:
         razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
@@ -85,7 +109,7 @@ def identificar_padrao(sequencia):
             nome = "Sequência Geométrica Alternada" if razao_pg < 0 else "Progressão Geométrica (PG)"
             return f"{nome}\nRazão Multiplicativa: *({round(razao_pg, 4)})\n\n{prop_txt}", proximo
 
-    # 6. TESTE: Função Quadrática (2º Grau)
+    # 9. TESTE: Função Quadrática (2º Grau)
     dif_primeira = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_segunda = [dif_primeira[i] - dif_primeira[i-1] for i in range(1, len(dif_primeira))]
     if len(dif_segunda) > 0 and all(d == dif_segunda[0] for d in dif_segunda):
@@ -95,8 +119,6 @@ def identificar_padrao(sequencia):
         return "Função Quadrática (2º Grau)\nA variação muda de forma constante.", proximo
 
     return ("Padrão estrutural não reconhecido.\n\n" + prop_txt if prop_txt else "Padrão complexo não reconhecido.", None)
-
-
 # --- INTERFACE VISUAL DA PÁGINA WEB ---
 
 # Barra lateral com créditos do autor de engenharia
@@ -104,7 +126,7 @@ st.sidebar.title("Informações Técnicas")
 st.sidebar.markdown("---")
 st.sidebar.write("**Desenvolvido por:**")
 st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V8.0 (Nuvem / Mobile)")
+st.sidebar.write("**Versão:** V9.0 (Nuvem / Novas Fórmulas)")
 
 # Título principal da página web
 st.title("📊 Analisador de Padrões Lógicos")
@@ -117,8 +139,7 @@ aba1, aba2 = st.tabs(["🔢 Sequências Numéricas", "🧠 Lógica Proposicional
 with aba1:
     st.header("Análise de Tendência e Curvas Numéricas")
     
-    # Campo de texto interativo da Web
-    texto_usuario = st.text_input("Digite inteiros, decimais ou frações separados por vírgula:", "1, 2, 3")
+    texto_usuario = st.text_input("Digite inteiros, decimais ou frações separados por vírgula:", "1, 8, 27, 64")
     
     if st.button("Descobrir Padrão Numérico"):
         try:
@@ -134,7 +155,6 @@ with aba1:
             
             tipo_padrao, proximo_num = identificar_padrao(sequencia)
             
-            # Divide a tela em duas colunas (Esquerda: Resultados, Direita: Gráfico)
             col1, col2 = st.columns(2)
             
             with col1:
@@ -143,7 +163,6 @@ with aba1:
                     st.metric(label="Próximo Termo Estimado (T+1)", value=str(proximo_num))
             
             with col2:
-                # Plota e exibe o gráfico no container do site usando matplotlib
                 fig, ax = plt.subplots(figsize=(5, 3.5))
                 eixo_x_original = list(range(1, len(sequencia) + 1))
                 ax.plot(eixo_x_original, sequencia, marker='o', color='#2980b9', linewidth=2, label="Dados")
@@ -156,7 +175,7 @@ with aba1:
                 ax.set_title("Curva do Comportamento Numérico")
                 ax.grid(True, linestyle=':', alpha=0.6)
                 ax.legend()
-                st.pyplot(fig) # Comando mágico do Streamlit para colocar gráficos no site [1]
+                st.pyplot(fig)
                 
         except Exception:
             st.error("Erro na leitura da sequência. Verifique os separadores.")
@@ -174,7 +193,6 @@ with aba2:
             if not variaveis:
                 st.warning("Nenhuma variável lógica encontrada (Use letras maiúsculas).")
             else:
-                # Processamento e construção das strings textuais da tabela
                 cabecalho = " | ".join(f" {v} " for v in variaveis) + f" |  {expressao_original} \n"
                 divisor = "-" * len(cabecalho) + "\n"
                 
@@ -199,7 +217,6 @@ with aba2:
                     
                     texto_final += f"{valores_linha} |  {res_linha}\n"
                 
-                # Exibe a tabela formatada com fonte monoespaçada nativa no site
                 st.code(texto_final, language="text")
                 
         except Exception:
