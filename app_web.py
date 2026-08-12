@@ -270,7 +270,8 @@ else:
             try:
                 linhas = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
                 matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas]
-                relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, faktor_escalar=fator_escalar)
+                # COLA ESTA LINHA CORRIGIDA NO LUGAR:
+relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, escalar_mult=fator_escalar)
                 st.markdown(relatorio)
                 if fig_matriz:
                     st.pyplot(fig_matriz)
