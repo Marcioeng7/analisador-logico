@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V14.2 (Correção Definitiva da Subtração de Listas em PA/PG)
+Versão: V16.0 (Módulo de Autenticação, Banco de Dados Simulado e Documentação)
 Ano: 2026
 """
 
@@ -12,13 +12,28 @@ import itertools
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 # Configuração global da página Web
 st.set_page_config(
-    page_title="Central Analítica de Engenharia", 
-    page_icon="📊", 
+    page_title="Central Analítica & ADS", 
+    page_icon="🖥️", 
     layout="wide"
 )
+
+# --- ARQUITETURA DE BANCO DE DADOS SIMULADA (PADRÃO ADS / ENGENHARIA) ---
+# Inicializa as tabelas na memória global do servidor (Session State)
+if "tabela_usuarios" not in st.session_state:
+    st.session_state["tabela_usuarios"] = {
+        "marcio": "admin123",
+        "professor": "ads2026"
+    }
+
+if "tabela_historico" not in st.session_state:
+    st.session_state["tabela_historico"] = []
+
+if "usuario_logado" not in st.session_state:
+    st.session_state["usuario_logado"] = None
 
 # --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
 def extrair_dados_do_arquivo(arquivo_carregado):
@@ -28,13 +43,9 @@ def extrair_dados_do_arquivo(arquivo_carregado):
             df = pd.read_csv(arquivo_carregado, header=None)
         else:
             df = pd.read_excel(arquivo_carregado, header=None)
-            
         dados = df.values.tolist()
-        
         if len(dados) == 1:
-            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
-        
-        # Caso possua múltiplas linhas e colunas, processa como matriz estruturada
+            return [float(x) for x in dados if pd.notna(x)], "sequencia"
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
     except Exception:
@@ -42,48 +53,52 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         return None, None
 
 # --- SISTEMA 1: PROCESSAMENTO E PLOTAGEM DE MATRIZES ---
-def processar_matriz_pura(matriz):
+def processar_matriz_pura(matriz, escalar_mult=1.0):
     try:
+        matriz = [[x * escalar_mult for x in linha] for linha in matriz]
         num_linhas = len(matriz)
-        num_colunas = len(matriz[0]) if num_linhas > 0 else 0
-        
+        num_colunas = len(matriz) if num_linhas > 0 else 0
         if not all(len(l) == num_colunas for l in matriz):
-            return "Erro: A matriz possui linhas com comprimentos desalinhados.", None, None
+            return "Erro: A matriz possui linhas com comprimentos desalinhados.", None, None, None
             
         transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
+        todos_valores = [x for linha in matriz for x in linha]
+        v_max = max(todos_valores)
+        v_min = min(todos_valores)
+        v_media = sum(todos_valores) / len(todos_valores)
         
-        det_txt = "N/A (Apenas matrizes quadradas 2x2 ou 3x3 possuem determinante estável)."
+        traco_txt = "N/A"
+        if num_linhas == num_colunas:
+            traco_txt = f"{round(sum(matriz[i][i] for i in range(num_linhas)), 4)}"
+        
+        det_txt = "N/A"
         if num_linhas == num_colunas:
             if num_linhas == 2:
-                det = (matriz[0][0] * matriz[1][1]) - (matriz[0][1] * matriz[1][0])
+                det = (matriz * matriz) - (matriz * matriz)
                 det_txt = f"{round(det, 4)}"
             elif num_linhas == 3:
-                d1 = (matriz[0][0]*matriz[1][1]*matriz[2][2]) + (matriz[0][1]*matriz[1][2]*matriz[2][0]) + (matriz[0][2]*matriz[1][0]*matriz[2][1])
-                d2 = (matriz[0][2]*matriz[1][1]*matriz[2][0]) + (matriz[0][0]*matriz[1][2]*matriz[2][1]) + (matriz[0][1]*matriz[1][0]*matriz[2][2])
+                d1 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
+                d2 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
                 det_txt = f"{round(d1 - d2, 4)}"
                 
-        relatorio = f"**Dimensão Identificada:** {num_linhas}x{num_colunas}  \n**Determinante Matemático:** {det_txt}"
+        relatorio = (
+            f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Traço:** {traco_txt}  \n"
+            f"**Estatísticas:** Máx: {round(v_max, 4)} | Mín: {round(v_min, 4)} | Média: {round(v_media, 4)}"
+        )
         
-        fig = plt.figure(figsize=(5, 4))
+        fig = plt.figure(figsize=(4.5, 3.2))
         ax = fig.add_subplot(111, projection='3d')
-        
         x = np.arange(0, num_colunas, 1)
         y = np.arange(0, num_linhas, 1)
         X, Y = np.meshgrid(x, y)
         Z = np.array(matriz)
-        
         surf = ax.plot_surface(X, Y, Z, cmap="coolwarm", edgecolor='none', alpha=0.9)
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5, label="Escala Z")
-        
-        ax.set_title("Projeção Topográfica de Superfície 3D", fontsize=9, fontweight="bold", pad=10)
-        ax.set_xlabel("Colunas (X)", fontsize=7)
-        ax.set_ylabel("Linhas (Y)", fontsize=7)
-        ax.set_zlabel("Valores (Z)", fontsize=7)
+        ax.set_title("Projeção Topográfica de Superfície 3D", fontsize=8, fontweight="bold")
         ax.tick_params(labelsize=6)
         
-        return relatorio, transposta, fig
+        return relatorio, transposta, fig, matriz
     except Exception as e:
-        return f"Erro analítico interno: {str(e)}", None, None
+        return f"Erro analítico: {str(e)}", None, None, None
 
 # --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
@@ -91,13 +106,13 @@ def checar_convergencia_serie(sequencia):
     if n < 3:
         return ""
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)):
-        return "\n\n**Análise Estatística de Série:** Série Harmônica Divergente ($\sum 1/n$).  \n*Comportamento:* A soma dos infinitos termos diverge lentamente para o infinito."
+        return "\n\n**Série:** Harmônica Divergente ($\sum 1/n$)."
     if all(x != 0 for x in sequencia):
         try:
-            razao = sequencia[1] / sequencia[0]
+            razao = sequencia / sequencia
             if abs(razao) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - razao) < 0.01 for i in range(1, n)):
-                soma_limite = sequencia[0] / (1 - razao)
-                return f"\n\n**Análise Estatística de Série:** Série Geométrica Convergente.  \n*Comportamento:* Estabiliza no limite numérico real exato de **{round(soma_limite, 4)}** se somada até o infinito."
+                soma_limite = sequencia / (1 - razao)
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(soma_limite, 4)}**."
         except Exception:
             pass
     return ""
@@ -116,230 +131,193 @@ def analisar_propriedades(sequencia):
         return ""
     properties = []
     if all(x % 2 == 0 for x in sequencia):
-        properties.append("Apenas Números Pares")
+        properties.append("Pares")
     elif all(x % 2 != 0 for x in sequencia):
-        properties.append("Apenas Números Ímpares")
+        properties.append("Ímpares")
     if all(eh_primo(x) for x in sequencia):
-        properties.append("Apenas Números Primos")
-    return f"**Propriedade dos Termos:** {', '.join(properties)}." if properties else ""
+        properties.append("Primos")
+    return f"**Propriedade:** {', '.join(properties)}." if properties else ""
 
 def identificar_padrao(sequencia):
     n = len(sequencia)
     if n < 3:
-        return "Insira pelo menos 3 números para análise.", None
-        
+        return "Insira pelo menos 3 números.", None
     prop_txt = analisar_propriedades(sequencia)
     serie_txt = checar_convergencia_serie(sequencia)
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
-        primeiro_termo = sequencia[0]
+        primeiro_termo = sequencia
         fatoriais_validos = [i for i in range(1, 15) if math.factorial(i) == primeiro_termo]
         if fatoriais_validos:
-            n_inicio = fatoriais_validos[0]
+            n_inicio = fatoriais_validos
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
-                proximo = math.factorial(n_inicio + n)
-                return "Sequência Fatorial (n!)\nRegra: Multiplicação sucessiva.", proximo
+                return "Sequência Fatorial (n!)", math.factorial(n_inicio + n)
 
-    if all(x >= 0 for x in sequencia) and (sequencia[0]**0.5).is_integer():
-        r_start = int(sequencia[0]**0.5)
+    if all(x >= 0 for x in sequencia) and (sequencia**0.5).is_integer():
+        r_start = int(sequencia**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
-            proximo = (r_start + n)**2
-            return "Sequência de Quadrados Perfeitos (n²)\nRegra: Potências quadráticas.", proximo
+            return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
 
-    raiz_cubica_primeiro = round(sequencia[0]**(1/3))
+    raiz_cubica_primeiro = round(sequencia**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
-        proximo = (raiz_cubica_primeiro + n)**3
-        return "Sequência de Cubos Perfeitos (n³)\nRegra: Números elevados ao cubo.", proximo
+        return "Sequência de Cubos Perfeitos (n³)", (raiz_cubica_primeiro + n)**3
 
     try:
-        det = 1 + 8 * sequencia[0]
+        det = 1 + 8 * sequencia
         if det >= 0 and (det**0.5).is_integer():
             n_start = int((-1 + (det**0.5)) / 2)
             if all(sequencia[i] == ((n_start + i) * ((n_start + i) + 1)) // 2 for i in range(n)):
                 n_prox = n_start + n
-                proximo = (n_prox * (n_prox + 1)) // 2
-                return "Sequência de Números Triangulares\nRegra: Somatório geométrico de pontos.", proximo
+                return "Sequência de Números Triangulares", (n_prox * (n_prox + 1)) // 2
     except Exception:
         pass
 
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
-        proximo = sequencia[-1] + sequencia[-2]
-        return "Sequência de Fibonacci\nRegra: Soma dos dois termos anteriores.", proximo
+        return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
 
-    if sequencia[0] == 2 and sequencia[1] == 1:
-        if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
-            proximo = sequencia[-1] + sequencia[-2]
-            return "Sequência de Lucas\nRegra: Variação de Fibonacci iniciando em 2 e 1.", proximo
-
-    # --- CORREÇÃO MATEMÁTICA DEFINITIVA DE SUBSCRIPT INDEXADO (PA) ---
     if n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
-            proximo = sequencia[-1] + razao_pa
-            proximo = int(proximo) if isinstance(proximo, float) and proximo.is_integer() else proximo
-            return f"Progressão Aritmética (PA)\nRazão: {'+' if razao_pa >= 0 else ''}{razao_pa}{serie_txt}\n\n{prop_txt}", proximo
+            return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt} {prop_txt}", sequencia[-1] + razao_pa
 
-    # --- CORREÇÃO MATEMÁTICA DEFINITIVA DE SUBSCRIPT INDEXADO (PG) ---
     if all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
-            proximo = sequencia[-1] * razao_pg
-            proximo = int(proximo) if isinstance(proximo, float) and proximo.is_integer() else round(proximo, 4)
             nome = "Sequência Geométrica Alternada" if razao_pg < 0 else "Progressão Geométrica (PG)"
-            return f"{nome}\nRazão Multiplicativa: *({round(razao_pg, 4)}){serie_txt}\n\n{prop_txt}", proximo
+            return f"{nome} | Razão: *({round(razao_pg, 4)}){serie_txt} {prop_txt}", int(sequencia[-1] * razao_pg)
 
     dif_primeira = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_segunda = [dif_primeira[i] - dif_primeira[i-1] for i in range(1, len(dif_primeira))]
-    if len(dif_segunda) > 0 and all(d == dif_segunda[0] for d in dif_segunda):
-        proxima_dif = dif_primeira[-1] + dif_segunda[0]
-        proximo = sequencia[-1] + proxima_dif
-        proximo = int(proximo) if isinstance(proximo, float) and proximo.is_integer() else proximo
-        return "Função Quadrática (2º Grau)\nA variação muda de forma constante." + serie_txt, proximo
+    if len(dif_segunda) > 0 and all(d == dif_segunda for d in dif_segunda):
+        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_primeira[-1] + dif_segunda
 
-    return ("Padrão estrutural não reconhecido.\n\n" + prop_txt if prop_txt else "Padrão complexo não reconhecido.", None)
+    return ("Padrão complexo não reconhecido.", None)
 
-# --- INTERFACE VISUAL PRINCIPAL DA INTERNET (STREAMLIT) ---
+# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E ABAS ADS) ---
 
-st.sidebar.title("⚙️ Painel de Controle")
-st.sidebar.markdown("---")
-st.sidebar.write("**Desenvolvido por:**")
-st.sidebar.info("Marcio de Andrade Neves (Engenheiro)")
-st.sidebar.write("**Versão:** V14.2 (Matemática Pura)")
+st.sidebar.title("🔒 Segurança do Sistema")
+if st.session_state["usuario_logado"] is None:
+    st.sidebar.subheader("Acesso à Área Restrita")
+    campo_usuario = st.sidebar.text_input("Usuário:")
+    campo_senha = st.sidebar.text_input("Senha:", type="password")
+    if st.sidebar.button("Autenticar no Banco"):
+        if campo_usuario in st.session_state["tabela_usuarios"] and st.session_state["tabela_usuarios"][campo_usuario] == campo_senha:
+            st.session_state["usuario_logado"] = campo_usuario
+            st.sidebar.success(f"Conectado: {campo_usuario}")
+            st.rerun()
+        else:
+            st.sidebar.error("Credenciais inválidas no Banco de Dados.")
+else:
+    st.sidebar.write(f"👤 **Logado como:** `{st.session_state['usuario_logado']}`")
+    st.sidebar.info("Nível de Acesso: Desenvolvedor")
+    if st.sidebar.button("Desconectar do Servidor"):
+        st.session_state["usuario_logado"] = None
+        st.rerun()
 
-st.title("📊 Central Computacional de Lógica e Engenharia")
-st.markdown("Plataforma web avançada para avaliação de sequências lógicas, séries infinitas e matrizes lineares.")
+st.title("🖥️ Central Computacional Prática de ADS & Engenharia")
+st.markdown("Software estruturado em conformidade com as diretrizes do curso de **Análise e Desenvolvimento de Sistemas**.")
 
-# Componente de Upload de Planilhas
-st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
-arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
+# Condicional de exibição das abas do sistema
+if st.session_state["usuario_logado"] is None:
+    st.warning("⚠️ **Acesso Negado.** Por favor, efetue o login no painel lateral para liberar os motores analíticos.")
+    st.info("💡 **Dica de Teste para Professores:** Use Usuário: `marcio` e Senha: `admin123`")
+else:
+    # Definição das Abas incluindo a nova aba de Documentação do TCC / Projeto
+    aba1, aba2, aba3, aba4, aba5 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Tabela Verdade", "🗄️ Tabela Banco de Dados", "📚 Documentação ADS (TCC)"])
 
-dados_planilha, tipo_dado = None, None
-if arquivo_usuario is not None:
-    dados_planilha, tipo_dado = extrair_dados_do_arquivo(arquivo_usuario)
-    if tipo_dado == "sequencia":
-        st.info(f"Planilha detectada! Uma sequência de {len(dados_planilha)} números foi importada para a Aba 1.")
-    elif tipo_dado == "matriz":
-        st.info(f"Planilha detectada! Uma matriz foi importada para a Aba 2.")
-
-# Definição das Abas estruturadas
-aba1, aba2, aba3 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Lógica Proposicional"])
-
-# LÓGICA DA ABA 1: SEQUÊNCIAS E SÉRIES
-with aba1:
-    st.header("Análise Gráfica de Curvas e Tendências")
-    valor_padrao_seq = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
-    texto_usuario = st.text_input("Insira os termos numéricos separados por vírgula (ou use o arquivo acima):", valor_padrao_seq)
-    
-    if st.button("Analisar Sequência"):
-        try:
-            sequencia = [float(Fraction(x.strip())) if "/" in x else float(x.strip()) for x in texto_usuario.split(",") if x.strip() != ""]
-            sequencia_limpa = [int(num) if num.is_integer() else num for num in sequencia]
-            
+    # LÓGICA DA ABA 1: SEQUÊNCIAS
+    with aba1:
+        st.header("Análise de Padrões Sequenciais")
+        arquivo_usuario = st.file_uploader("Importar planilha Excel/CSV para Sequência", type=["xlsx", "csv"], key="file_seq")
+        dados_planilha, tipo_dado = (extrair_dados_do_arquivo(arquivo_usuario) if arquivo_usuario else (None, None))
+        val_padrao = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
+        texto_usuario = st.text_input("Elementos da Sequência:", val_padrao)
+        
+        if st.button("Executar Análise"):
+            sequencia_limpa = [int(float(x.strip())) if float(x.strip()).is_integer() else float(x.strip()) for x in texto_usuario.split(",") if x.strip() != ""]
             tipo_padrao, proximo_num = identificar_padrao(sequencia_limpa)
-            
             st.success(f"### {tipo_padrao}")
             if proximo_num is not None:
-                st.metric(label="Próximo Termo Projetado (T+1)", value=str(proximo_num))
-            
-            g_col1, g_col2 = st.columns(2)
-            with g_col1:
-                fig1, ax1 = plt.subplots(figsize=(4.5, 3.2))
-                eixo_x_original = list(range(1, len(sequencia_limpa) + 1))
-                ax1.plot(eixo_x_original, sequencia_limpa, marker='o', color='#2980b9', linewidth=2, label="Dados")
-                if proximo_num is not None:
-                    eixo_x_proximo = len(sequencia_limpa) + 1
-                    ax1.plot([eixo_x_original[-1], eixo_x_proximo], [sequencia_limpa[-1], proximo_num], linestyle='--', color='#27ae60')
-                    ax1.scatter(eixo_x_proximo, proximo_num, color='#27ae60', zorder=5, s=50, label=f"Prox ({proximo_num})")
-                ax1.set_title("Curva de Tendência Contínua", fontsize=9, fontweight="bold")
-                ax1.grid(True, linestyle=':', alpha=0.6)
-                ax1.legend(fontsize=7)
-                st.pyplot(fig1)
-                
-            with g_col2:
-                fig2, ax2 = plt.subplots(figsize=(4.5, 3.2))
-                termos_labels = [f"T{i}" for i in eixo_x_original]
-                valores_barras = list(sequencia_limpa)
-                cores_barras = ['#3498db'] * len(valores_barras)
-                if proximo_num is not None:
-                    termos_labels.append("T+1")
-                    valores_barras.append(proximo_num)
-                    cores_barras.append('#2ecc71')
-                ax2.bar(termos_labels, valores_barras, color=cores_barras, edgecolor='grey', alpha=0.85)
-                ax2.set_title("Histograma Discreto de Intensidade", fontsize=9, fontweight="bold")
-                ax2.grid(True, axis='y', linestyle=':', alpha=0.6)
-                st.pyplot(fig2)
-        except Exception:
-            st.error("Erro na leitura. Verifique os valores inseridos.")
+                st.metric("Próximo Termo (T+1)", str(proximo_num))
+                # GRAVAÇÃO HISTÓRICA NO BANCO DE DADOS SIMULADO
+                st.session_state["tabela_historico"].append({
+                    "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "usuario": st.session_state["usuario_logado"],
+                    "tipo_operacao": "Sequência Numérica",
+                    "entrada": texto_usuario,
+                    "resultado": f"{tipo_padrao} | Próximo: {proximo_num}"
+                })
+            fig1, ax1 = plt.subplots(figsize=(5, 2.5))
+            ax1.plot(range(1, len(sequencia_limpa) + 1), sequencia_limpa, marker='o', color='#2980b9')
+            ax1.set_title("Curva de Comportamento")
+            st.pyplot(fig1)
 
-# LÓGICA DA ABA 2: OPERAÇÕES COM MATRIZES
-with aba2:
-    st.header("Cálculo Matricial e Topografia 3D")
-    if tipo_dado == "matriz":
-        valor_padrao_matriz = ";\n".join(", ".join(str(x) for x in linha) for linha in dados_planilha)
-    else:
-        valor_padrao_matriz = "0, 1, 2, 1, 0;\n1, 3, 4, 3, 1;\n2, 4, 5, 4, 2;\n1, 3, 4, 3, 1;\n0, 1, 2, 1, 0"
+    # LÓGICA DA ABA 2: MATRIZES
+    with aba2:
+        st.header("Cálculo Matricial Linear")
+        fator_escalar = st.number_input("Multiplicador Escalar (K):", value=1.0, step=0.5)
+        entrada_matriz = st.text_area("Estrutura da Matriz:", "0,1,2,1,0;\n1,3,4,3,1;\n2,4,5,4,2")
+        if st.button("Processar Matriz 3D"):
+            linhas = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
+            matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas]
+            relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, fator_escalar)
+            st.markdown(relatorio)
+            if fig_matriz:
+                st.pyplot(fig_matriz)
+                st.session_state["tabela_historico"].append({
+                    "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "usuario": st.session_state["usuario_logado"],
+                    "tipo_operacao": "Cálculo Matricial",
+                    "entrada": entrada_matriz.replace("\n", " "),
+                    "resultado": "Processamento e renderização 3D concluídos."
+                })
+
+    # LÓGICA DA ABA 3: TABELA VERDADE
+    with aba3:
+        st.header("Análise Analítica de Proposições")
+        expr_logica = st.text_input("Expressão:", "(A AND B) -> NOT C")
+        if st.button("Gerar Tabela"):
+            variaveis = sorted(list(set([c for c in expr_logica if c.isalpha() and c.isupper()])))
+            cabecalho = " | ".join(f" {v} " for v in variaveis) + f" |  {expr_logica} \n"
+            texto_final = cabecalho + ("-" * len(cabecalho)) + "\n"
+            combinacoes = list(itertools.product([True, False], repeat=len(variaveis)))
+            for comb in combinacoes:
+                contexto = dict(zip(variaveis, comb))
+                expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
+                if "->" in expr:
+                    p = expr.split("->")
+                    expr = f"not ({p.strip()}) or ({p.strip()})"
+                res = eval(expr, {}, contexto)
+                valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
+                texto_final += f"{valores_linha} |  {'V' if res else 'F'}\n"
+            st.code(texto_final, language="text")
+
+    # LÓGICA DA ABA 4: HISTÓRICO E BANCO DE DADOS RELACIONAL SIMULADO
+    with aba4:
+        st.header("🗄️ Visualização das Tabelas do Banco de Dados")
+        st.markdown("Esta aba simula a consulta a tabelas relacionais de logs estruturadas na memória do sistema.")
+        if not st.session_state["tabela_historico"]:
+            st.info("O Banco de Dados de logs está vazio. Execute alguma operação nas abas anteriores para registrar.")
+        else:
+            df_logs = pd.DataFrame(st.session_state["tabela_historico"])
+            # Filtra os dados exibindo apenas os logs do usuário que está logado na sessão (Conceito de Segurança ADS)
+            df_filtrado = df_logs[df_logs["usuario"] == st.session_state["usuario_logado"]]
+            st.markdown(f"**Tabela: `tb_historico_operacoes` (Filtrada para o usuário: `{st.session_state['usuario_logado']}`)**")
+            st.dataframe(df_filtrado, use_container_width=True)
+
+    # LÓGICA DA ABA 5: DOCUMENTAÇÃO ACADÊMICA PADRÃO TCC (ADS)
+    with aba5:
+        st.header("📚 Documentação e Fundamentação Teórica do Projeto")
+        st.markdown("Use esta estrutura como base conceitual para apresentar o projeto para a banca avaliadora da faculdade.")
         
-    entrada_matriz = st.text_area("Estrutura da Matriz (Texto ou importada da planilha):", valor_padrao_matriz, height=120)
-    
-    if st.button("Calcular Propriedades e Plotar 3D"):
-        try:
-            linhas_puras = [l.strip() for l in entrada_matriz.split(";") if l.strip() != ""]
-            matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas_puras]
-            
-            relatorio, transposta, fig_matriz = processar_matriz_pura(matriz_final)
-            if transposta is None:
-                st.error(relatorio)
-            else:
-                col_mat1, col_mat2 = st.columns(2)
-                with col_mat1:
-                    st.success("### Resultados Analíticos")
-                    st.markdown(relatorio)
-                    txt_transposta = "".join(" | ".join(f"{x:6}" for x in linha) + "\n" for child in [transposta] for linha in child)
-                    st.markdown("**Matriz Transposta Resultante:**")
-                    st.code(txt_transposta, language="text")
-                with col_mat2:
-                    if fig_matriz:
-                        st.pyplot(fig_matriz)
-        except Exception as ex:
-            st.error(f"Formatação inválida da matriz: {str(ex)}")
-
-# LÓGICA DA ABA 3: LÓGICA PROPOSICIONAL
-with aba3:
-    st.header("Gerador Analítico de Tabela Verdade")
-    expressao_original = st.text_input("Digite a proposição composto:", "(A AND B) -> NOT C", key="logica_input")
-    
-    if st.button("Gerar Tabela Verdade"):
-        try:
-            variaveis = sorted(list(set([c for c in expressao_original if c.isalpha() and c.isupper()])))
-            if not variaveis:
-                st.warning("Insira proposições com letras maiúsculas.")
-            else:
-                cabecalho = " | ".join(f" {v} " for v in variaveis) + f" |  {expressao_original} \n"
-                texto_final = cabecalho + ("-" * len(cabecalho)) + "\n"
-                combinacoes = list(itertools.product([True, False], repeat=len(variaveis)))
-                
-                for comb in combinacoes:
-                    contexto = dict(zip(variaveis, comb))
-                    expr = expressao_original.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
-                    
-                    if "<->" in expr:
-                        partes_bicond = expr.split("<->")
-                        expr = f"({partes_bicond[0].strip()}) == ({partes_bicond[1].strip()})"
-                    if "->" in expr:
-                        partes_cond = expr.split("->")
-                        expr = f"not ({partes_cond[0].strip()}) or ({partes_cond[1].strip()})"
-
-                    resultado_bool = eval(expr, {}, contexto)
-                    valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
-                    texto_final += f"{valores_linha} |  {'V' if resultado_bool else 'F'}\n"
-                
-                st.code(texto_final, language="text")
-                
-                st.download_button(
-                    label="📥 Baixar Tabela Verdade (.txt)",
-                    data=texto_final,
-                    file_name="tabela_verdade_engenharia.txt",
-                    mime="text/plain"
-                )
-        except Exception:
-            st.error("Erro na sintaxe proposicional. Verifique se os parênteses estão fechados corretamente.")
+        st.subheader("1. Visão Geral do Sistema")
+        st.info("**Nome do Projeto:** Central Analítica Multi-Módulo  \n**Arquitetura:** Web Application (Cliente-Servidor)  \n**Linguagem Core:** Python 3.14  \n**Ambiente de Deploy:** Streamlit Cloud PaaS (Platform as a Service)")
+        
+        st.subheader("2. Mapeamento de Engenharia de Software por Disciplinas (ADS)")
+        st.markdown("""
+        *   **Lógica de Programação e Matemática Computacional:** Implementada na Aba 3 através do motor que decodifica strings literais (`AND`, `OR`, `NOT`, `->`), mapeia permutações binárias combinatórias ($2^n$ estados lógicos via `itertools.product`) e avalia a tabela verdade resultante.
+        *   **Estruturas de Dados Avançadas:** Utilização de vetores e arranjos multidimensionais (matrizes dinâmicas do tipo *List of Lists*) manipuladas e remapeadas através de compreensões de listas lineares.
+        *   **Segurança da Informação e Controle de Acesso:** Simulação de barreira de firewall e controle de sessão (*Session Control*). O sistema bloqueia os motores computacionais e as consultas de banco de dados caso o token `usuario_logado` não esteja autenticado de forma estrita contra a tabela hash de credenciais.
+        *   **Banco de Dados e Persistência:** Mapeamento estruturado de logs transacionais através de esquemas relacionais de chaves (`data_hora`, `usuario`, `tipo_operacao`, `entrada`, `resultado`).
+        *   **DevOps e Integração Contínua:** Gerenciamento distribuído de código através do Git e do repositório no GitHub integrado ao pipeline de deploy contínuo em nuvem.
+        """)
