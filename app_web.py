@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V22.0 (Inclusão de Conversores de Base e Classificação de Tautologia)
+Versão: V22.2 (Integração Total Sem Cortes de Linhas)
 Ano: 2026
 """
 
@@ -45,7 +45,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         dados = df.values.tolist()
         
         if len(dados) == 1:
-            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados if pd.notna(x)], "sequencia"
             
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
@@ -58,7 +58,7 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
     try:
         matriz = [[x * escalar_mult for x in linha] for linha in matriz]
         num_linhas = len(matriz)
-        num_colunas = len(matriz[0]) if num_linhas > 0 else 0
+        num_colunas = len(matriz) if num_linhas > 0 else 0
         if not all(len(l) == num_colunas for l in matriz):
             return "Erro: A matriz possui linhas com comprimentos desalinhados.", None, None, None
             
@@ -75,11 +75,11 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         det_txt = "N/A"
         if num_linhas == num_colunas:
             if num_linhas == 2:
-                det = (matriz[0][0] * matriz[1][1]) - (matriz[0][1] * matriz[1][0])
+                det = (matriz * matriz) - (matriz * matriz)
                 det_txt = f"{round(det, 4)}"
             elif num_linhas == 3:
-                d1 = (matriz[0][0]*matriz[1][1]*matriz[2][2]) + (matriz[0][1]*matriz[1][2]*matriz[2][0]) + (matriz[0][2]*matriz[1][0]*matriz[2][1])
-                d2 = (matriz[0][2]*matriz[1][1]*matriz[2][0]) + (matriz[0][0]*matriz[1][2]*matriz[2][1]) + (matriz[0][1]*matriz[1][0]*matriz[2][2])
+                d1 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
+                d2 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
                 det_txt = f"{round(d1 - d2, 4)}"
                 
         relatorio = (
@@ -110,9 +110,9 @@ def checar_convergencia_serie(sequencia):
         return "\n\n**Série:** Harmônica Divergente ($\sum 1/n$)."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                soma_limite = sequencia[0] / (1 - r_prop)
+                soma_limite = sequencia / (1 - r_prop)
                 return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(soma_limite, 4)}**."
         except Exception:
             pass
@@ -144,27 +144,27 @@ def identificar_padrao(sequencia):
     serie_txt = checar_convergencia_serie(sequencia)
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
-        p_termo = sequencia[0]
+        p_termo = sequencia
         fatoriais_validos = [i for i in range(1, 14) if math.factorial(i) == p_termo]
         if fatoriais_validos:
-            n_inicio = fatoriais_validos[0]
+            n_inicio = fatoriais_validos
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 return "Sequência Fatorial (n!)", math.factorial(n_inicio + n)
 
     if all(x >= 0 for x in sequencia):
-        p_termo = sequencia[0]
+        p_termo = sequencia
         if (p_termo**0.5).is_integer():
             r_start = int(p_termo**0.5)
             if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
                 return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
 
-    p_termo = sequencia[0]
+    p_termo = sequencia
     raiz_cubica_primeiro = round(p_termo**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
         return "Sequência de Cubos Perfeitos (n³)", (raiz_cubica_primeiro + n)**3
 
     try:
-        det = 1 + 8 * sequencia[0]
+        det = 1 + 8 * sequencia
         if det >= 0 and (det**0.5).is_integer():
             n_start = int((-1 + (det**0.5)) / 2)
             if all(sequencia[i] == ((n_start + i) * ((n_start + i) + 1)) // 2 for i in range(n)):
@@ -177,20 +177,20 @@ def identificar_padrao(sequencia):
         return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
 
     if n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt} {prop_txt}", sequencia[-1] + razao_pa
 
     if all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             nome = "Sequência Geométrica Alternada" if razao_pg < 0 else "Progressão Geométrica (PG)"
             return f"{nome} | Razão: *({round(razao_pg, 4)}){serie_txt} {prop_txt}", int(sequencia[-1] * razao_pg)
 
     dif_primeira = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_segunda = [dif_primeira[i] - dif_primeira[i-1] for i in range(1, len(dif_primeira))]
-    if len(dif_segunda) > 0 and all(d == dif_segunda[0] for d in dif_segunda):
-        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_primeira[-1] + dif_segunda[0]
+    if len(dif_segunda) > 0 and all(d == dif_segunda for d in dif_segunda):
+        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_primeira[-1] + dif_segunda
 
     return ("Padrão complexo não reconhecido.", None)
 
@@ -253,7 +253,7 @@ else:
 
     aba1, aba2, aba3, aba4, aba5 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Tabela Verdade", "🗄️ Tabela Banco de Dados", "📚 Documentação ADS (TCC)"])
 
-    # LÓGICA DA ABA 1: SEQUÊNCIAS + NOVO CONVERSOR DE BASES (ARQUITETURA DE COMPUTADORES)
+    # LÓGICA DA ABA 1: SEQUÊNCIAS + CONVERSOR DE BASES
     with aba1:
         st.header("Análise de Padrões Sequenciais")
         val_padrao = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
@@ -280,7 +280,6 @@ else:
             except Exception as e:
                 st.error(f"Erro na análise de dados: {str(e)}")
                 
-        # --- NOVO RECURSO: CONVERSOR DE BASES DE ARQUITETURA DE COMPUTADORES ---
         st.markdown("---")
         st.subheader("🧮 Módulo de Apoio: Conversor de Sistemas de Numeração")
         st.markdown("*Matéria Relacionada:* **Organização e Arquitetura de Computadores**")
@@ -292,7 +291,7 @@ else:
         with c_col2:
             st.metric(label="Sistema Octal (Base 8)", value=oct(num_decimal)[2:])
         with c_col3:
-            st.metric(label="Endereçamento de Memória (Hexadecimal - Base 16)", value=hex(num_decimal)[2:].upper())
+            st.metric(label="Hexadecimal (Base 16)", value=hex(num_decimal)[2:].upper())
 
     # LÓGICA DA ABA 2: MATRIZES
     with aba2:
@@ -329,7 +328,7 @@ else:
             except Exception as e:
                 st.error(f"Erro na matriz: {str(e)}")
 
-    # LÓGICA DA ABA 3: TABELA VERDADE + NOVO CLASSIFICADOR LÓGICO AUTOMÁTICO (LÓGICA MATEMÁTICA)
+    # LÓGICA DA ABA 3: TABELA VERDADE E CLASSIFICADOR
     with aba3:
         st.header("Análise Analítica de Proposições")
         expr_logica = st.text_input("Expressão:", "(A AND B) -> NOT C")
@@ -340,9 +339,7 @@ else:
                 texto_final = cabecalho + ("-" * len(cabecalho)) + "\n"
                 combinacoes = list(itertools.product([True, False], repeat=len(variaveis)))
                 
-                # Lista auxiliar para salvar os resultados finais de cada linha e classificar a fórmula
                 coluna_resultados = []
-                
                 for comb in combinacoes:
                     contexto = dict(zip(variaveis, comb))
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
@@ -358,14 +355,44 @@ else:
                 
                 st.code(texto_final, language="text")
                 
-                # --- NOVO RECURSO: CLASSIFICADOR AUTOMÁTICO DE MATÉRIA DE LÓGICA ---
                 st.markdown("---")
                 st.subheader("🧠 Classificação Analítica da Proposição")
                 if all(coluna_resultados):
-                    st.success("🎯 A fórmula acima é uma **TAUTOLOGIA**! (Sempre Verdadeira em todas as linhas).")
+                    st.success("🎯 A fórmula acima é uma **TAUTOLOGIA**! (Sempre Verdadeira).")
                 elif not any(coluna_resultados):
-                    st.error("❌ A fórmula acima é uma **CONTRADIÇÃO**! (Sempre Falsa em todas as linhas).")
+                    st.error("❌ A fórmula acima é uma **CONTRADIÇÃO**! (Sempre Falsa).")
                 else:
-                    st.info("⚖️ A fórmula acima é uma **CONTINGÊNCIA**! (Possui resultados verdadeiros e falsos dependendo das variáveis).")
+                    st.info("⚖️ A fórmula acima é uma **CONTINGÊNCIA**! (Possui resultados mistos).")
                 
                 st.download_button(
+                    label="📥 Baixar Tabela Verdade (.txt)",
+                    data=texto_final,
+                    file_name="tabela_verdade_engenharia.txt",
+                    mime="text/plain"
+                )
+            except Exception as e:
+                st.error(f"Erro na lógica: {str(e)}")
+
+    # LÓGICA DA ABA 4: HISTÓRICO
+    with aba4:
+        st.header("🗄️ Visualização das Tabelas do Banco de Dados")
+        if not st.session_state["tabela_historico"]:
+            st.info("O Banco de Dados de logs está vazio. Execute alguma operação nas abas anteriores para registrar.")
+        else:
+            df_logs = pd.DataFrame(st.session_state["tabela_historico"])
+            df_filtrado = df_logs[df_logs["usuario"] == st.session_state["usuario_logado"]]
+            st.markdown(f"**Tabela: `tb_historico_operacoes` (Filtrada para o usuário: `{st.session_state['usuario_logado']}`)**")
+            st.dataframe(df_filtrado, use_container_width=True)
+
+    # LÓGICA DA ABA 5: DOCUMENTAÇÃO ACADÊMICA
+    with aba5:
+        st.header("📚 Documentação e Fundamentação Teórica do Projeto")
+        st.subheader("1. Visão Geral do Sistema")
+        st.info("**Nome do Projeto:** Central Analítica Multi-Módulo | **Arquitetura:** Web Application (Cliente-Servidor) | **Linguagem Core:** Python | **Deploy:** Streamlit PaaS")
+        st.subheader("2. Mapeamento de Engenharia de Software por Disciplinas (ADS)")
+        st.markdown("* **Lógica de Programação e Matemática Discreta:** Implementada na Aba 3 com decodificação automática, mapeamento de permutações binárias e classificação formal de tabelas verdade (Tautologia, Contradição e Contingência).")
+        st.markdown("* **Organização e Arquitetura de Computadores:** Implementada na Aba 1 através do Módulo de Conversão Numérica de inteiros decimais nativos para cadeias de bits binários, octais e representações hexadecimais de memória.")
+        st.markdown("* **Estruturas de Dados Avançadas:** Utilização de vetores e arranjos multidimensionais manipulados através de compreensões de listas lineares.")
+        st.markdown("* **Segurança da Informação:** Controle de sessão (Session Control) e módulo de autocadastro distribuído na barra lateral.")
+        st.markdown("* **Banco de Dados:** Mapeamento estruturado de logs transacionais através de esquemas relacionais salvos em dicionários de memória do servidor.")
+        st.markdown("* **DevOps:** Gerenciamento distribuído de código através do Git e do repositório no GitHub integrado ao pipeline de deploy contínuo em nuvem.")
