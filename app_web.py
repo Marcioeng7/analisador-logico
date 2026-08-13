@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.6 (Correção de Escopo: Função identificar_padrao Injetada)
+Versão: V27.0 (Divisão Avançada em 5 Blocos - PDF + Espectral)
 Ano: 2026
 """
 
@@ -14,6 +14,13 @@ import numpy as np
 import time
 import os
 from datetime import datetime
+
+# Componentes estruturais do motor de PDF
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
 
 st.set_page_config(page_title="Central Analítica & ADS", page_icon="🖥️", layout="wide")
 
@@ -66,6 +73,9 @@ if "indice_pergunta" not in st.session_state:
 if "quiz_concluido" not in st.session_state:
     st.session_state["quiz_concluido"] = False
 
+# ===================================================================
+# BANCO DE DADOS ESTÁTICO DE QUESTÕES DO QUIZ
+# ===================================================================
 BANCO_QUESTOES = [
     {"pergunta": "Na arquitetura de computadores, o número decimal 10 equivale a qual representação binária?", "opcoes": ["A) 1001", "B) 1010", "C) 1100", "D) 1111"], "correta": "B"},
     {"pergunta": "Qual das seguintes estruturas de dados utiliza o princípio LIFO (Last In, First Out)?", "opcoes": ["A) Fila (Queue)", "B) Lista Encadeada", "C) Pilha (Stack)", "D) Árvore Binária"], "correta": "C"},
@@ -74,7 +84,33 @@ BANCO_QUESTOES = [
 ]
 
 # ===================================================================
-# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS
+# 2. MOTOR COMPACTO DE EXPORTAÇÃO PDF (REPORTLAB)
+# ===================================================================
+def gerar_pdf_relatorio(titulo_doc, texto_conteudo):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    
+    style_titulo = ParagraphStyle('TituloEng', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor('#2c3e50'), spaceAfter=15)
+    style_corpo = ParagraphStyle('CorpoEng', parent=styles['Normal'], fontSize=11, leading=15, spaceAfter=8)
+    
+    story = []
+    story.append(Paragraph(f"<b>{titulo_doc}</b>", style_titulo))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", style_corpo))
+    story.append(Paragraph(f"Operador Responsável: {st.session_state['usuario_logado']}", style_corpo))
+    story.append(Spacer(1, 15))
+    
+    for linha in texto_conteudo.split('\n'):
+        if linha.strip():
+            story.append(Paragraph(linha.replace('**', '<b>').replace('**', '</b>'), style_corpo))
+            
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+# ===================================================================
+# 3. MÓDULO ESTATÍSTICO E ALGORÍTMICO DE SEQUÊNCIAS
 # ===================================================================
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
@@ -107,9 +143,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -159,9 +195,8 @@ def identificar_padrao(sequencia):
     t_fim = time.perf_counter()
     delta_t = (t_fim - t_inicio) * 1000
     return f"{resultado_padrao}\n\n{estatisticas}", proximo_num, delta_t
-
 # ===================================================================
-# 3. INTERFACE SIDEBAR (SISTEMA DE AUTENTICAÇÃO PERSISTENTE)
+# 4. INTERFACE SIDEBAR (SISTEMA DE AUTENTICAÇÃO PERSISTENTE)
 # ===================================================================
 st.sidebar.title("🔒 Área de Acesso")
 if st.session_state["usuario_logado"] is None:
@@ -196,7 +231,7 @@ else:
         st.rerun()
 
 # ===================================================================
-# FUNÇÃO: PROCESSAMENTO MATRICIAL COM MALHA ADAPTATIVA 3D
+# 5. FUNÇÃO MATRICIAL COMPLETA (INVERSA + TRANSPOSTA + AUTOVALORES)
 # ===================================================================
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
@@ -207,29 +242,35 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         
         det_txt = "N/A (Não Quadrada)"
         inversa_np = None
+        autovalores = None
+        autovetores = None
+        
         if num_linhas == num_colunas:
             det_val = float(np.linalg.det(np_matriz))
             det_txt = f"{round(det_val, 4)}"
             if abs(det_val) > 1e-9:
                 inversa_np = np.linalg.inv(np_matriz)
+            
+            # Cálculo de Autovalores e Autovetores via NumPy
+            autovalores, autovetores = np.linalg.eig(np_matriz)
         
         t_fim = time.perf_counter()
         delta_t = (t_fim - t_inicio) * 1000
         relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
         
-        # Malha tridimensional gerada de forma dinâmica com o shape exato
+        # Plotagem adaptativa da malha topográfica
         fig = plt.figure(figsize=(4, 2.5))
         ax = fig.add_subplot(111, projection='3d')
         X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
         ax.plot_surface(X, Y, np_matriz, cmap="coolwarm", edgecolor='none', alpha=0.9)
         ax.set_title("Superfície 3D Adaptativa", fontsize=8, fontweight="bold")
         
-        return relatorio, transposta, inversa_np, fig, delta_t
+        return relatorio, transposta, inversa_np, autovalores, autovetores, fig, delta_t
     except Exception as e:
-        return f"Erro analítico matricial: {str(e)}", None, None, None, 0.0
+        return f"Erro analítico matricial: {str(e)}", None, None, None, None, None, 0.0
 
 # ===================================================================
-# 4. CORPO PRINCIPAL E NAVEGAÇÃO DE ABAS
+# 6. CORPO PRINCIPAL E INTERFACE GRÁFICA DE ABAS
 # ===================================================================
 st.title("🖥️ Central Computacional Prática de ADS & Engenharia")
 if st.session_state["usuario_logado"] is None:
@@ -262,9 +303,12 @@ else:
                 st.info(f"⚡ **Desempenho Algorítmico:** Processado em **{round(dt_s, 4)} ms**")
                 
                 a, b, r2, x_val, y_pred = calcular_regressao_linear(seq_l)
-                st.markdown(f"📊 **Análise de Regressão Linear Simples:**")
-                st.write(f"• Equação de Tendência Ajustada: $y = {round(a,4)}x + ({round(b,4)})$")
-                st.write(f"• Coeficiente de Determinação ($R^2$): **{round(r2, 4)}**")
+                txt_regressao = (
+                    f"📊 **Análise de Regressão Linear Simples:**\n"
+                    f"• Equação de Tendência Ajustada: y = {round(a,4)}x + ({round(b,4)})\n"
+                    f"• Coeficiente de Determinação (R²): {round(r2, 4)}"
+                )
+                st.markdown(txt_regressao)
                 
                 fig, ax = plt.subplots(figsize=(5, 1.8))
                 ax.scatter(range(1, len(seq_l) + 1), seq_l, color='#e74c3c', label='Dados Originais', zorder=5)
@@ -272,6 +316,12 @@ else:
                 ax.legend(fontsize=6)
                 st.pyplot(fig)
                 plt.close(fig)
+                
+                # Geração de PDF Técnico da Sequência
+                conteudo_pdf_seq = f"{pad}\n\n{txt_regressao}"
+                pdf_data = gerar_pdf_relatorio("Relatório Técnico - Análise de Sequências e Regressão", conteudo_pdf_seq)
+                st.download_button("📥 Exportar Relatório em PDF", pdf_data, "relatorio_sequencia.pdf", "application/pdf")
+                
             except Exception as e: st.error(f"Erro: {str(e)}")
         
         st.markdown("---  \n**🧮 Conversor de Sistemas de Numeração (Arquitetura de Computadores)**")
@@ -283,8 +333,8 @@ else:
     # ---------------------------------------------------------------
     with ab2:
         st.subheader("Operações Avançadas entre Duas Matrizes")
-        v_matA = st.text_area("Estrutura da Matriz A:", ";\n".join(", ".join(str(x) for x in l) for l in d_plan) if t_dado == "matriz" else "1,2;\n3,4", height=70)
-        v_matB = st.text_area("Estrutura da Matriz B:", "5,6;\n7,8", height=70)
+        v_matA = st.text_area("Estrutura da Matriz A:", ";\n".join(", ".join(str(x) for x in l) for l in d_plan) if t_dado == "matriz" else "1,2;3,4", height=70)
+        v_matB = st.text_area("Estrutura da Matriz B:", "5,6;7,8", height=70)
         k = st.number_input("Multiplicador Escalar K (Matriz A):", value=1.0)
         if st.button("Calcular Operações Matriciais"):
             try:
@@ -293,7 +343,7 @@ else:
                 linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
                 matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
                 
-                rel, trans, inv_np, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
+                rel, trans, inv_np, autovalores, autovetores, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
                 st.info(f"⚡ **Desempenho Algorítmico:** Concluído em **{round(dt_m, 4)} ms**")
                 
@@ -312,6 +362,20 @@ else:
                     else:
                         st.warning("Inversa Indisponível (Determinante Nulo ou Não Quadrada).")
                 
+                # Exibição Espectral Avançada
+                st.markdown("---")
+                st.subheader("🧬 Decomposição Espectral (Autovalores e Autovetores)")
+                if autovalores is not None:
+                    col_e1, col_e2 = st.columns(2)
+                    with col_e1:
+                        st.markdown("**Autovalores ($\lambda$):**")
+                        st.code(str(np.round(autovalores, 4)))
+                    with col_e2:
+                        st.markdown("**Autovetores (V):**")
+                        st.code(str(np.round(autovetores, 4)))
+                else:
+                    st.warning("Decomposição indisponível (A matriz precisa ser quadrada).")
+                
                 matA, matB = np.array(matrizA_list, dtype=float), np.array(matrizB_list, dtype=float)
                 if matA.shape == matB.shape:
                     st.markdown("---")
@@ -322,6 +386,12 @@ else:
                     st.markdown("**Multiplicação de Engenharia (A × B):**")
                     st.code(str(np.dot(matA, matB)))
                 else: st.warning("Dimensões incompatíveis para Soma/Subtração direta.")
+                
+                # Geração de PDF Técnico da Álgebra Matricial
+                conteudo_pdf_mat = f"{rel}\n\nAutovalores:\n{str(np.round(autovalores, 4)) if autovalores is not None else 'N/A'}\n\nAutovetores:\n{str(np.round(autovetores, 4)) if autovetores is not None else 'N/A'}"
+                pdf_data_mat = gerar_pdf_relatorio("Relatório Técnico - Análise Linear e Espectral", conteudo_pdf_mat)
+                st.download_button("📥 Exportar Laudo Técnico em PDF", pdf_data_mat, "laudo_matricial.pdf", "application/pdf")
+                
             except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
 
     # ---------------------------------------------------------------
@@ -353,8 +423,16 @@ else:
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
                     
                 st.code(txt_t)
-                st.write("**Classificação:** TAUTOLOGIA" if all(resultados) else "**Classificação:** CONTRADIÇÃO" if not any(resultados) else "**Classificação:** CONTINGÊNCIA")
-                st.download_button("📥 Baixar Tabela (.txt)", txt_t, "tabela.txt")
+                classif = "TAUTOLOGIA" if all(resultados) else "CONTRADIÇÃO" if not any(resultados) else "CONTINGÊNCIA"
+                st.write(f"**Classificação:** {classif}")
+                
+                col_down1, col_down2 = st.columns(2)
+                with col_down1:
+                    st.download_button("📥 Baixar Tabela (.txt)", txt_t, "tabela.txt")
+                with col_down2:
+                    # Geração de Relatório PDF da Tabela Verdade
+                    pdf_data_log = gerar_pdf_relatorio("Laudo Lógico - Mapeamento de Proposições", f"Expressão: {log_in}\nClassificação: {classif}\n\nEstrutura mapeada e validada com sucesso.")
+                    st.download_button("📥 Baixar Laudo em PDF", pdf_data_log, "laudo_logico.pdf", "application/pdf")
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
 
     # ---------------------------------------------------------------
@@ -362,19 +440,13 @@ else:
     # ---------------------------------------------------------------
     with ab4:
         st.header("🧪 Quiz Simulador ADS & Painel de Liderança")
-        
         user_atual = st.session_state["usuario_logado"]
         idx = st.session_state["indice_pergunta"]
         
         if not st.session_state["quiz_concluido"] and idx < len(BANCO_QUESTOES):
             questao_atual = BANCO_QUESTOES[idx]
-            
             st.markdown(f"### **Questão {idx + 1}:**")
-            alternativa_selecionada = st.radio(
-                questao_atual["pergunta"], 
-                questao_atual["opcoes"], 
-                key=f"quiz_radio_{idx}"
-            )
+            alternativa_selecionada = st.radio(questao_atual["pergunta"], questao_atual["opcoes"], key=f"quiz_radio_{idx}")
             
             col_q1, col_q2 = st.columns(2)
             with col_q1:
@@ -383,25 +455,12 @@ else:
                     if letra_escolhida == questao_atual["correta"]:
                         st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
                         st.success(f"🎯 Correto, {user_atual.capitalize()}! +1 Ponto computado.")
-                        
-                        st.session_state["tabela_historico"].append({
-                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Usuário": user_atual,
-                            "Questão": idx + 1,
-                            "Resultado": "Acertou"
-                        })
+                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Result": "Acertou"})
                     else:
                         st.error(f"❌ Incorreto! A resposta correta era a alternativa {questao_atual['correta']}.")
-                        st.session_state["tabela_historico"].append({
-                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Usuário": user_atual,
-                            "Questão": idx + 1,
-                            "Resultado": "Errou"
-                        })
-                    
+                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Result": "Errou"})
                     salvar_tabela_ranking()
                     salvar_tabela_historico()
-                    
             with col_q2:
                 if st.button("Próxima Questão ➡️"):
                     if st.session_state["indice_pergunta"] + 1 < len(BANCO_QUESTOES):
@@ -428,7 +487,6 @@ else:
     # ---------------------------------------------------------------
     with ab5:
         st.header("🗄️ Visualização das Tabelas do Banco de Dados")
-        
         st.subheader("🛠️ Painel Avançado de Governança")
         if st.button("🚨 Limpar Histórico e Eventos do Sistema"):
             st.session_state["tabela_historico"] = []
@@ -451,7 +509,8 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de $R^2$.")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de $R^2$.\n* **RF006 - Módulo de Relatórios:** Geração nativa e dinâmica de laudos em formato PDF via ReportLab.")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
             st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Salva na tabela física local -> Libera Token.")
+
