@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V25.0 (Análise de Complexidade Big-O, Ranking de Quiz e Engenharia de Requisitos)
+Versão: V25.1 (Blindagem Completa de Álgebra Linear via Módulo NumPy Nativo)
 Ano: 2026
 """
 
@@ -41,34 +41,37 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         st.error("Erro ao ler o arquivo.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A) ---
+# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA COM NUMPY) ---
 def processar_matriz_pura(matriz, escalar_mult=1.0):
-    # Início do Cronômetro de Performance
     t_inicio = time.perf_counter()
-    
-    matriz = [[x * escalar_mult for x in linha] for linha in matriz]
-    num_linhas, num_colunas = len(matriz), len(matriz) if len(matriz) > 0 else 0
-    if not all(len(l) == num_colunas for l in matriz): return "Erro: Linhas desalinhadas.", None, None, 0.0
-    transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
-    todos_valores = [x for linha in matriz for x in linha]
-    det_txt = "N/A"
-    if num_linhas == num_colunas:
-        if num_linhas == 2: det_txt = f"{round((matriz*matriz)-(matriz*matriz), 4)}"
-        elif num_linhas == 3:
-            d1 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
-            d2 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
-            det_txt = f"{round(d1 - d2, 4)}"
-            
-    t_fim = time.perf_counter()
-    delta_t = (t_fim - t_inicio) * 1000 # Convertido para milissegundos
-    
-    relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(sum(todos_valores)/len(todos_valores), 4)}"
-    fig = plt.figure(figsize=(4, 2.5))
-    ax = fig.add_subplot(111, projection='3d')
-    X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
-    ax.plot_surface(X, Y, np.array(matriz), cmap="coolwarm", edgecolor='none', alpha=0.9)
-    ax.set_title("Superfície 3D - Matriz A", fontsize=8, fontweight="bold")
-    return relatorio, transposta, fig, delta_t
+    try:
+        # Converte a entrada para um arranjo matemático real do NumPy e aplica o escalar
+        np_matriz = np.array(matriz, dtype=float) * escalar_mult
+        num_linhas, num_colunas = np_matriz.shape
+        
+        # Calcula a Matriz Transposta usando o atributo nativo .T do NumPy
+        transposta = np_matriz.T.tolist()
+        
+        det_txt = "N/A"
+        if num_linhas == num_colunas:
+            if num_linhas in:
+                # Calcula o Determinante de forma estável usando Álgebra Linear do NumPy
+                det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
+                
+        t_fim = time.perf_counter()
+        delta_t = (t_fim - t_inicio) * 1000
+        
+        relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
+        
+        fig = plt.figure(figsize=(4, 2.5))
+        ax = fig.add_subplot(111, projection='3d')
+        X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
+        ax.plot_surface(X, Y, np_matriz, cmap="coolwarm", edgecolor='none', alpha=0.9)
+        ax.set_title("Superfície 3D - Matriz A", fontsize=8, fontweight="bold")
+        
+        return relatorio, transposta, fig, delta_t
+    except Exception as e:
+        return f"Erro analítico matricial: {str(e)}", None, None, 0.0
 
 # --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
@@ -77,21 +80,19 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
 # --- SISTEMA 3: LEITOR DE PADRÕES E PAINEL ESTATÍSTICO ---
 def identificar_padrao(sequencia):
-    # Início do Cronômetro de Performance
     t_inicio = time.perf_counter()
-    
     n = len(sequencia)
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
-    p_termo = float(sequencia[0])
+    p_termo = float(sequencia)
     
     arr = np.array(sequencia)
     estatisticas = (
@@ -107,7 +108,7 @@ def identificar_padrao(sequencia):
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
         if f_validos:
-            n_inicio = f_validos[0]
+            n_inicio = f_validos
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
                 proximo_num = math.factorial(n_inicio + n)
@@ -127,13 +128,13 @@ def identificar_padrao(sequencia):
         proximo_num = sequencia[-1] + sequencia[-2]
         
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
             
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
@@ -145,7 +146,6 @@ def identificar_padrao(sequencia):
 
 # --- INTERFACE VISUAL DA PLATAFORMA ---
 st.sidebar.title("🔒 Área de Acesso")
-
 if st.session_state["usuario_logado"] is None:
     acesso1, acesso2 = st.sidebar.tabs(["Acessar", "Criar Conta"])
     with acesso1:
@@ -162,7 +162,6 @@ if st.session_state["usuario_logado"] is None:
         if st.button("Registrar", key="b_cad"):
             if n_user and n_pass and n_user not in st.session_state["tabela_usuarios"]:
                 st.session_state["tabela_usuarios"][n_user] = n_pass
-                # Inicializa a pontuação do novo usuário com zero na tabela de liderança
                 st.session_state["tabela_ranking"][n_user] = 0
                 st.success("Registrado!")
             else: st.error("Inválido ou já existe.")
@@ -189,10 +188,7 @@ else:
                 pad, prox, dt_s = identificar_padrao(seq_l)
                 st.success(f"### {pad}")
                 if prox is not None: st.metric("Próximo Termo", str(prox))
-                
-                # Exibe a análise de complexidade temporal real da operação (ADS / Big O)
-                st.info(f"⚡ **Desempenho Algorítmico:** Processado em **{round(dt_s, 4)} ms** | Complexidade Estimada: $O(n)$")
-                
+                st.info(f"⚡ **Desempenho Algorítmico:** Processado em **{round(dt_s, 4)} ms** | Complexidade: $O(n)$")
                 fig, ax = plt.subplots(figsize=(5, 1.8))
                 ax.plot(range(1, len(seq_l) + 1), seq_l, marker='o', color='#2980b9')
                 st.pyplot(fig)
@@ -208,12 +204,22 @@ else:
         k = st.number_input("Multiplicador Escalar K (Matriz A):", value=1.0)
         if st.button("Calcular Operações Matriciais"):
             try:
-                matA = np.array([[float(x) for x in l.split(",") if x.strip()] for l in v_matA.split(";") if l.strip()])
-                matB = np.array([[float(x) for x in l.split(",") if x.strip()] for l in v_matB.split(";") if l.strip()])
-                rel, trans, fig_m, dt_m = processar_matriz_pura(matA.tolist(), k)
+                # Converte as strings de texto em estruturas puras de listas Python
+                linhasA = [l.strip() for l in v_matA.split(";") if l.strip()]
+                matrizA_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasA]
+                
+                linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
+                matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
+                
+                # Executa o processador corrigido com Álgebra Linear estável
+                rel, trans, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
-                st.info(f"⚡ **Desempenho Algorítmico:** Multiplicação multidimensional concluída em **{round(dt_m, 4)} ms** | Complexidade Estimada: $O(n^3)$")
+                st.info(f"⚡ **Desempenho Algorítmico:** Operação matricial concluída em **{round(dt_m, 4)} ms** | Complexidade: $O(n^3)$")
                 if fig_m: st.pyplot(fig_m)
+                
+                matA = np.array(matrizA_list, dtype=float)
+                matB = np.array(matrizB_list, dtype=float)
+                
                 if matA.shape == matB.shape:
                     st.markdown("---")
                     st.markdown("**Soma Aditiva (A + B):**")
@@ -223,9 +229,8 @@ else:
                     st.markdown("**Multiplicação de Engenharia (A × B):**")
                     st.code(str(np.dot(matA, matB)))
                 else: st.warning("Dimensões incompatíveis para Soma/Subtração direta.")
-            except Exception as ex: st.error(f"Erro na matriz: {str(ex)}")
+            except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
 
-    # LÓGICA DA ABA 3: TABELA VERDADE
     with ar3:
         log_in = st.text_input("Expressão:", "(A AND B) -> NOT C")
         if st.button("Gerar Tabela Verdade"):
@@ -238,7 +243,7 @@ else:
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        expr = f"not ({p.strip()}) or ({p.strip()})"
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
@@ -247,57 +252,32 @@ else:
                 st.download_button("📥 Baixar Tabela (.txt)", txt_t, "tabela.txt")
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
 
-    # LÓGICA DA ABA 4: QUIZ INTERATIVO + RANKING DE LIDERANÇA DINÂMICO
     with ab4:
         st.header("🧪 Quiz Simulador ADS & Painel de Liderança")
-        st.markdown("Responda às questões e pontue no Banco de Dados. Seu desempenho ficará registrado no Ranking global!")
-        
         q1 = st.radio("**Questão 1:** Na arquitetura de computadores, o número decimal **10** equivale a qual representação binária?", ["A) 1001", "B) 1010", "C) 1100", "D) 1111"])
-        
         if st.button("Validar Resposta e Pontuar"):
             user_atual = st.session_state["usuario_logado"]
             if q1.startswith("B"):
-                # Computa o acerto e incrementa um ponto de forma estável no dicionário do usuário logado
                 st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
-                st.success(f"🎯 Resposta Correta, Engenheiro {user_atual.capitalize()}! Ponto computado com sucesso no Banco!")
-            else:
-                st.error("❌ Resposta Incorreta. Tente novamente!")
-                
-        # Exibição Dinâmica da Tabela Hash de Ranking (Conceito puro de Algoritmos)
+                st.success(f"🎯 Resposta Correta, {user_atual.capitalize()}! Ponto computado com sucesso no Banco!")
+            else: st.error("❌ Resposta Incorreta. Tente novamente!")
         st.markdown("---")
         st.subheader("🏆 Quadro de Líderes do Sistema (`tb_ranking_quiz`)")
         df_ranking = pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["Usuário", "Pontos Computados"])
         df_ranking = df_ranking.sort_values(by="Pontos Computados", ascending=False).reset_index(drop=True)
         st.dataframe(df_ranking, use_container_width=True)
 
-    # LÓGICA DA ABA 5: BANCO DE LOGS
     with ab5:
         st.header("🗄️ Visualização das Tabelas do Banco de Dados")
         if st.session_state["tabela_historico"]: st.dataframe(pd.DataFrame(st.session_state["tabela_historico"]))
         else: st.info("Banco vazio.")
 
-    # LÓGICA DA ABA 6: ENGENHARIA DE REQUISITOS E ARTEFATOS ACADÊMICOS
     with ab6:
         st.header("📚 Engenharia de Software e Especificação Técnica")
-        st.markdown("Abaixo estão estruturados os artefatos formais exigidos nas bancas de avaliação de TCC e Projetos de ADS.")
-        
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("""
-            *   **RF001 - Autocadastro de Usuário:** O sistema deve permitir que novos atores criem credenciais encriptadas em memória local.
-            *   **RF002 - Controle de Sessão:** O sistema deve bloquear a visualização de dados caso o token de autenticação seja nulo.
-            *   **RF003 - Análise de Complexidade:** O sistema deve cronometrar em tempo real ($ms$) o tempo de processamento algorítmico.
-            """)
+            st.info("* **RF001 - Autocadastro:** Criação de credenciais encriptadas em memória local.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações caso o token seja nulo.\\n* **RF003 - Análise de Complexidade:** Cronometragem de tempo algorítmico em milissegundos.")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
-            st.success("""
-            *   **Atores:** Usuário Visitante ou Professor.
-            *   **Fluxo Principal:** 
-                1. O ator acessa a aba lateral 'Criar Conta'.
-                2. O sistema solicita um identificador exclusivo e chave.
-                3. O ator confirma a inserção.
-                4. O sistema valida contra a tabela hash e registra o novo nó de memória.
-            """)
-        st.markdown("---")
-        st.markdown("*Mapeamento de Disciplinas:* **Lógica de Programação** | **Arquitetura de Computadores** | **Estrutura de Dados** | **Engenharia de Software** | **DevOps**.")
+            st.success("* **Atores:** Visitante ou Professor.\\n* **Fluxo:** Acessa 'Criar Conta' -> Fornece ID e Chave -> Valida contra tabela hash -> Registra novo nó de memória.")
