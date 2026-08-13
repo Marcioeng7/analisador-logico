@@ -1,13 +1,12 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.1 (Correção Cirúrgica de Extração de Índice na Aba 1)
+Versão: V26.2 (Divisão Estrutural em Blocos + Quiz Dinâmico)
 Ano: 2026
 """
 
 import streamlit as st
 import math
-from fractions import Fraction
 import itertools
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -17,6 +16,9 @@ from datetime import datetime
 
 st.set_page_config(page_title="Central Analítica & ADS", page_icon="🖥️", layout="wide")
 
+# ===================================================================
+# 1. INICIALIZAÇÃO DO ESTADO GLOBAL (SESSION STATE)
+# ===================================================================
 if "tabela_usuarios" not in st.session_state:
     st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
 if "tabela_historico" not in st.session_state:
@@ -26,13 +28,46 @@ if "tabela_ranking" not in st.session_state:
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
+# Estados do Quiz Dinâmico Rotativo
+if "indice_pergunta" not in st.session_state:
+    st.session_state["indice_pergunta"] = 0
+if "quiz_concluido" not in st.session_state:
+    st.session_state["quiz_concluido"] = False
+
+# Banco de dados de questões do Quiz de ADS & Engenharia
+BANCO_QUESTOES = [
+    {
+        "pergunta": "Na arquitetura de computadores, o número decimal 10 equivale a qual representação binária?",
+        "opcoes": ["A) 1001", "B) 1010", "C) 1100", "D) 1111"],
+        "correta": "B"
+    },
+    {
+        "pergunta": "Qual das seguintes estruturas de dados utiliza o princípio LIFO (Last In, First Out)?",
+        "opcoes": ["A) Fila (Queue)", "B) Lista Encadeada", "C) Pilha (Stack)", "D) Árvore Binária"],
+        "correta": "C"
+    },
+    {
+        "pergunta": "Na Engenharia de Software, qual diagrama da UML é focado no aspecto comportamental e na interação de atores com o sistema?",
+        "opcoes": ["A) Diagrama de Classes", "B) Diagrama de Casos de Uso", "C) Diagrama de Implantação", "D) Diagrama de Objetos"],
+        "correta": "B"
+    },
+    {
+        "pergunta": "Qual é a complexidade de tempo no pior caso para o algoritmo de ordenação Bubble Sort?",
+        "opcoes": ["A) O(1)", "B) O(n log n)", "C) O(n)", "D) O(n²)"],
+        "correta": "D"
+    }
+]
+
+# ===================================================================
+# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS
+# ===================================================================
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo.")
@@ -50,6 +85,7 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         t_fim = time.perf_counter()
         delta_t = (t_fim - t_inicio) * 1000
         relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
+        
         fig = plt.figure(figsize=(4, 2.5))
         ax = fig.add_subplot(111, projection='3d')
         X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
@@ -77,9 +113,7 @@ def identificar_padrao(sequencia):
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
     
-    # CORREÇÃO CRÍTICA BRINDADA: Acessa o índice 0 da lista antes de converter em float
     p_termo = float(sequencia[0])
-    
     arr = np.array(sequencia)
     estatisticas = (
         f"---  \n📊 **Painel Estatístico Descritivo (Módulo de Dados):**  \n"
@@ -120,6 +154,9 @@ def identificar_padrao(sequencia):
     delta_t = (t_fim - t_inicio) * 1000
     return f"{resultado_padrao}\n\n{estatisticas}", proximo_num, delta_t
 
+# ===================================================================
+# 3. INTERFACE SIDEBAR (SISTEMA DE AUTENTICAÇÃO)
+# ===================================================================
 st.sidebar.title("🔒 Área de Acesso")
 if st.session_state["usuario_logado"] is None:
     acesso1, acesso2 = st.sidebar.tabs(["Acessar", "Criar Conta"])
@@ -144,8 +181,13 @@ else:
     st.sidebar.write(f"👤 Logado: `{st.session_state['usuario_logado']}`")
     if st.sidebar.button("Sair"):
         st.session_state["usuario_logado"] = None
+        st.session_state["indice_pergunta"] = 0
+        st.session_state["quiz_concluido"] = False
         st.rerun()
 
+# ===================================================================
+# 4. CORPO PRINCIPAL E NAVEGAÇÃO DE ABAS
+# ===================================================================
 st.title("🖥️ Central Computacional Prática de ADS & Engenharia")
 if st.session_state["usuario_logado"] is None:
     st.warning("⚠️ Efetue o login ou crie sua conta na barra lateral.")
@@ -153,8 +195,18 @@ if st.session_state["usuario_logado"] is None:
 else:
     arq = st.file_uploader("Importar Planilha (Opcional)", type=["xlsx", "csv"])
     d_plan, t_dado = extrair_dados_do_arquivo(arq) if arq else (None, None)
-    ab1, ab2, ar3, ab4, ab5, ab6 = st.tabs(["🔢 Sequências & Bases", "🧮 Matrizes A & B 3D", "🧠 Tabela Verdade", "🧪 Quiz & Ranking ADS", "🗄️ Banco de Dados", "📚 Engenharia de Software"])
+    ab1, ab2, ar3, ab4, ab5, ab6 = st.tabs([
+        "🔢 Sequências & Bases", 
+        "🧮 Matrizes A & B 3D", 
+        "🧠 Tabela Verdade", 
+        "🧪 Quiz & Ranking ADS", 
+        "🗄️ Banco de Dados", 
+        "📚 Engenharia de Software"
+    ])
 
+    # ---------------------------------------------------------------
+    # ABA 1: SEQUÊNCIAS E CONVERSÃO DE BASES (PURIFICADA)
+    # ---------------------------------------------------------------
     with ab1:
         txt_seq = st.text_input("Sequência:", ", ".join(str(x) for x in d_plan) if t_dado == "sequencia" else "1, 2, 3, 4")
         if st.button("Analisar Sequência"):
@@ -167,11 +219,17 @@ else:
                 fig, ax = plt.subplots(figsize=(5, 1.8))
                 ax.plot(range(1, len(seq_l) + 1), seq_l, marker='o', color='#2980b9')
                 st.pyplot(fig)
+                plt.close(fig)
             except Exception as e: st.error(f"Erro: {str(e)}")
+        
         st.markdown("---  \n**🧮 Conversor de Sistemas de Numeração (Arquitetura de Computadores)**")
         dec = st.number_input("Decimal:", min_value=0, value=42)
-        st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].white().upper() if hasattr(str, 'white') else hex(dec)[2:].upper()}`")
+        # CORREÇÃO CIRÚRGICA: Removido método invisível/fictício .white() que crashava a aplicação
+        st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].upper()}`")
 
+    # ---------------------------------------------------------------
+    # ABA 2: OPERAÇÕES MATRICIAIS E SUPERFÍCIE 3D
+    # ---------------------------------------------------------------
     with ab2:
         st.subheader("Operações Avançadas entre Duas Matrizes")
         v_matA = st.text_area("Estrutura da Matriz A:", ";\n".join(", ".join(str(x) for x in l) for l in d_plan) if t_dado == "matriz" else "1,2;\n3,4", height=70)
@@ -183,10 +241,14 @@ else:
                 matrizA_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasA]
                 linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
                 matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
+                
                 rel, trans, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
                 st.info(f"⚡ **Desempenho Algorítmico:** Operação matricial concluída em **{round(dt_m, 4)} ms** | Complexidade: $O(n^3)$")
-                if fig_m: st.pyplot(fig_m)
+                if fig_m: 
+                    st.pyplot(fig_m)
+                    plt.close(fig_m)
+                
                 matA, matB = np.array(matrizA_list, dtype=float), np.array(matrizB_list, dtype=float)
                 if matA.shape == matB.shape:
                     st.markdown("---")
@@ -199,6 +261,9 @@ else:
                 else: st.warning("Dimensões incompatíveis para Soma/Subtração direta.")
             except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
 
+    # ---------------------------------------------------------------
+    # ABA 3: TABELA VERDADE PROPOSICIONAL
+    # ---------------------------------------------------------------
     with ar3:
         st.header("Análise Analítica de Proposições")
         log_in = st.text_input("Expressão:", "(A AND B) -> NOT C")
@@ -221,32 +286,91 @@ else:
                 st.download_button("📥 Baixar Tabela (.txt)", txt_t, "tabela.txt")
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
 
+    # ---------------------------------------------------------------
+    # ABA 4: QUIZ ROTATIVO E DINÂMICO (CORRIGIDO)
+    # ---------------------------------------------------------------
     with ab4:
         st.header("🧪 Quiz Simulador ADS & Painel de Liderança")
-        q1 = st.radio("**Questão 1:** Na arquitetura de computadores, o número decimal **10** equivale a qual representação binária?", ["A) 1001", "B) 1010", "C) 1100", "D) 1111"])
-        if st.button("Validar Resposta e Pontuar"):
-            user_atual = st.session_state["usuario_logado"]
-            if q1.startswith("B"):
-                st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
-                st.success(f"🎯 Resposta Correta, {user_atual.capitalize()}! Ponto computado com sucesso no Banco!")
-            else: st.error("❌ Resposta Incorreta. Tente novamente!")
+        
+        user_atual = st.session_state["usuario_logado"]
+        idx = st.session_state["indice_pergunta"]
+        
+        # Verifica se ainda existem perguntas disponíveis no banco
+        if not st.session_state["quiz_concluido"] and idx < len(BANCO_QUESTOES):
+            questao_atual = BANCO_QUESTOES[idx]
+            
+            st.markdown(f"### **Questão {idx + 1}:**")
+            # Utilizar uma chave única vinculada ao índice força o Streamlit a resetar o radiobutton na mudança de questão
+            alternativa_selecionada = st.radio(
+                questao_atual["pergunta"], 
+                questao_atual["opcoes"], 
+                key=f"quiz_radio_{idx}"
+            )
+            
+            col_q1, col_q2 = st.columns(2)
+            with col_q1:
+                if st.button("Validar Resposta"):
+                    letra_escolhida = alternativa_selecionada.split(")")[0].strip()
+                    if letra_escolhida == questao_atual["correta"]:
+                        st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
+                        st.success(f"🎯 Correto, {user_atual.capitalize()}! +1 Ponto computado.")
+                        
+                        # Alimenta o histórico do banco de dados na Aba 5
+                        st.session_state["tabela_historico"].append({
+                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Usuário": user_atual,
+                            "Questão": idx + 1,
+                            "Resultado": "Acertou"
+                        })
+                    else:
+                        st.error(f"❌ Incorreto! A resposta correta era a alternativa {questao_atual['correta']}.")
+                        st.session_state["tabela_historico"].append({
+                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Usuário": user_atual,
+                            "Questão": idx + 1,
+                            "Resultado": "Errou"
+                        })
+            with col_q2:
+                if st.button("Próxima Questão ➡️"):
+                    if st.session_state["indice_pergunta"] + 1 < len(BANCO_QUESTOES):
+                        st.session_state["indice_pergunta"] += 1
+                    else:
+                        st.session_state["quiz_concluido"] = True
+                    st.rerun()
+        else:
+            st.balloons()
+            st.success("🎉 Você concluiu todas as questões disponíveis no banco analítico!")
+            if st.button("Reiniciar Quiz 🔄"):
+                st.session_state["indice_pergunta"] = 0
+                st.session_state["quiz_concluido"] = False
+                st.rerun()
+                
         st.markdown("---")
         st.subheader("🏆 Quadro de Líderes do Sistema (`tb_ranking_quiz`)")
         df_ranking = pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["Usuário", "Pontos Computados"])
         df_ranking = df_ranking.sort_values(by="Pontos Computados", ascending=False).reset_index(drop=True)
         st.dataframe(df_ranking, use_container_width=True)
 
+    # ---------------------------------------------------------------
+    # ABA 5: BANCO DE DADOS (LOG DE EVENTOS DO QUIZ)
+    # ---------------------------------------------------------------
     with ab5:
         st.header("🗄️ Visualização das Tabelas do Banco de Dados")
-        if st.session_state["tabela_historico"]: st.dataframe(pd.DataFrame(st.session_state["tabela_historico"]))
-        else: st.info("Banco vazio.")
+        if st.session_state["tabela_historico"]: 
+            st.markdown("### Histórico de Tentativas no Quiz (`tb_log_eventos`)")
+            st.dataframe(pd.DataFrame(st.session_state["tabela_historico"]), use_container_width=True)
+        else: 
+            st.info("Banco de dados histórico vazio. Responda ao quiz para gerar logs.")
 
+    # ---------------------------------------------------------------
+    # ABA 6: DOCUMENTAÇÃO DE ENGENHARIA
+    # ---------------------------------------------------------------
     with ab6:
         st.header("📚 Engenharia de Software e Especificação Técnica")
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais em hash dinâmico.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais em hash dinâmico.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
-            st.success("* **Atores:** Usuário Acadêmico ou Professor.\\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Mapeia na Tabela Hash do Servidor -> Libera Token.")
+            st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Mapeia na Tabela Hash do Servidor -> Libera Token.")
