@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.3 (Reconstrução Completa Sem Perda de Índices)
+Versão: V26.4 (Blindagem Completa de Sequências + Bicondicional na Tabela Verdade)
 Ano: 2026
 """
 
@@ -79,7 +79,7 @@ BANCO_QUESTOES = [
     },
     {
         "pergunta": "Na Engenharia de Software, qual diagrama da UML é focado no aspecto comportamental e na interação de atores com o sistema?",
-        "opcoes": ["A) Diagrama de Classes", "B) Diagrama de Casos de Uso", "C) Diagrama de Implantação", "D) Diagrama de Objects"],
+        "opcoes": ["A) Diagrama de Classes", "B) Diagrama de Casos de Uso", "C) Diagrama de Implantação", "D) Diagrama de Objetos"],
         "correta": "B"
     },
     {
@@ -90,7 +90,7 @@ BANCO_QUESTOES = [
 ]
 
 # ===================================================================
-# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS
+# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS (BLINDAGEM CONTRA FLOAT BUG)
 # ===================================================================
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
@@ -296,32 +296,47 @@ else:
             except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
 
     # ---------------------------------------------------------------
-    # ABA 3: TABELA VERDADE PROPOSICIONAL
+    # ABA 3: TABELA VERDADE PROPOSICIONAL (SUPORTE A CONDICIONAL E BICONDICIONAL)
     # ---------------------------------------------------------------
     with ar3:
         st.header("Análise Analítica de Proposições")
-        log_in = st.text_input("Expressão:", "(A AND B) -> NOT C")
+        log_in = st.text_input("Expressão:", "(A AND B) <-> NOT C")
         if st.button("Gerar Tabela Verdade"):
             try:
+                # Extrai apenas as variáveis proposicionais (letras maiúsculas isoladas)
                 vars_l = sorted(list(set([c for c in log_in if c.isalpha() and c.isupper()])))
-                txt_t = " | ".join(vars_l) + f" | {log_in} \n" + "-"*30 + "\n"
+                txt_t = " | ".join(vars_l) + f" | {log_in} \n" + "-"*40 + "\n"
                 resultados = []
+                
+                # Gera todas as combinações lógicas binárias possíveis
                 for comb in list(itertools.product([True, False], repeat=len(vars_l))):
                     ctx = dict(zip(vars_l, comb))
+                    
+                    # Padroniza conectivos lógicos elementares
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
+                    
+                    # Processamento cirúrgico da Equivalência Material / Bicondicional (<->)
+                    if "<->" in expr:
+                        partes_bi = expr.split("<->")
+                        expr = f"({partes_bi[0].strip()}) == ({partes_bi[1].strip()})"
+                        
+                    # Processamento da Implicação Lógica / Condicional (->)
                     if "->" in expr:
-                        p = expr.split("->")
-                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        partes_cond = expr.split("->")
+                        expr = f"not ({partes_cond[0].strip()}) or ({partes_cond[1].strip()})"
+                        
+                    # Executa a validação lógica em ambiente isolado de contexto
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
+                    
                 st.code(txt_t)
                 st.write("**Classificação:** TAUTOLOGIA" if all(resultados) else "**Classificação:** CONTRADIÇÃO" if not any(resultados) else "**Classificação:** CONTINGÊNCIA")
                 st.download_button("📥 Baixar Tabela (.txt)", txt_t, "tabela.txt")
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
 
     # ---------------------------------------------------------------
-    # ABA 4: QUIZ ROTATIVO COM PERSISTÊNCIA EM DISCO (CORRIGIDO)
+    # ABA 4: QUIZ ROTATIVO COM PERSISTÊNCIA EM DISCO
     # ---------------------------------------------------------------
     with ab4:
         st.header("🧪 Quiz Simulador ADS & Painel de Liderança")
