@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.0 (Correção Definitiva do Interpretador da Condicional -> na Tabela Verdade)
+Versão: V26.1 (Correção Cirúrgica de Extração de Índice na Aba 1)
 Ano: 2026
 """
 
@@ -15,10 +15,8 @@ import numpy as np
 import time
 from datetime import datetime
 
-# Configuração global da página Web do Streamlit
 st.set_page_config(page_title="Central Analítica & ADS", page_icon="🖥️", layout="wide")
 
-# --- ARQUITETURA DE BANCO DE DADOS SIMULADA ---
 if "tabela_usuarios" not in st.session_state:
     st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
 if "tabela_historico" not in st.session_state:
@@ -28,7 +26,6 @@ if "tabela_ranking" not in st.session_state:
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
-# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS ---
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
@@ -41,55 +38,47 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         st.error("Erro ao ler o arquivo.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A) ---
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
     try:
         np_matriz = np.array(matriz, dtype=float) * escalar_mult
         num_linhas, num_colunas = np_matriz.shape
-        
         transposta = np_matriz.T.tolist()
-        
         det_txt = "N/A"
-        if num_linhas == num_colunas:
-            if num_linhas == 2 or num_linhas == 3:
-                det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
-                
+        if num_linhas == num_colunas and (num_linhas == 2 or num_linhas == 3):
+            det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
         t_fim = time.perf_counter()
         delta_t = (t_fim - t_inicio) * 1000
-        
         relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
-        
         fig = plt.figure(figsize=(4, 2.5))
         ax = fig.add_subplot(111, projection='3d')
         X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
         ax.plot_surface(X, Y, np_matriz, cmap="coolwarm", edgecolor='none', alpha=0.9)
         ax.set_title("Superfície 3D - Matriz A", fontsize=8, fontweight="bold")
-        
         return relatorio, transposta, fig, delta_t
     except Exception as e:
         return f"Erro analítico matricial: {str(e)}", None, None, 0.0
 
-# --- SISTEMA 2: TESTE DE CONVERGÊNCIA DE SÉRIES ---
 def checar_convergencia_serie(sequencia):
     n = len(sequencia)
     if n < 3: return ""
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia / sequencia
+            r_prop = sequencia[1] / sequencia[0]
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
-# --- SISTEMA 3: LEITOR DE PADRÕES E PAINEL ESTATÍSTICO ---
 def identificar_padrao(sequencia):
     t_inicio = time.perf_counter()
     n = len(sequencia)
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
-    p_termo = float(sequencia)
+    
+    # CORREÇÃO CRÍTICA BRINDADA: Acessa o índice 0 da lista antes de converter em float
+    p_termo = float(sequencia[0])
     
     arr = np.array(sequencia)
     estatisticas = (
@@ -98,50 +87,39 @@ def identificar_padrao(sequencia):
         f"• Desvio Padrão: {round(np.std(arr), 4)} | • Variância da Amostra: {round(np.var(arr), 4)}  \n"
         f"• Amplitude Máxima Total (Máx - Mín): {round(np.max(arr) - np.min(arr), 4)}"
     )
-
     resultado_padrao = "Padrão estrutural não reconhecido."
     proximo_num = None
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
-        if f_validos:
-            n_inicio = f_validos
-            if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
-                resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
-                proximo_num = math.factorial(n_inicio + n)
-                
+        if f_validos and all(sequencia[i] == math.factorial(f_validos[0] + i) for i in range(n)):
+            resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
+            proximo_num = math.factorial(f_validos[0] + n)
     if proximo_num is None and all(x >= 0 for x in sequencia) and (p_termo**0.5).is_integer():
         r_start = int(p_termo**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
             resultado_padrao = f"Sequência de Quadrados Perfeitos (n²){serie_txt}"
             proximo_num = (r_start + n)**2
-            
     if proximo_num is None and all(sequencia[i] == (round(p_termo**(1/3)) + i)**3 for i in range(n)):
         resultado_padrao = f"Sequência de Cubos Perfeitos (n³){serie_txt}"
         proximo_num = (round(p_termo**(1/3)) + n)**3
-        
     if proximo_num is None and all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         resultado_padrao = "Sequência de Fibonacci"
         proximo_num = sequencia[-1] + sequencia[-2]
-        
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia - sequencia
+        razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
-            
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia / sequencia
+        razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
-            
     t_fim = time.perf_counter()
     delta_t = (t_fim - t_inicio) * 1000
-    
     return f"{resultado_padrao}\n\n{estatisticas}", proximo_num, delta_t
 
-# --- INTERFACE VISUAL DA PLATAFORMA ---
 st.sidebar.title("🔒 Área de Acesso")
 if st.session_state["usuario_logado"] is None:
     acesso1, acesso2 = st.sidebar.tabs(["Acessar", "Criar Conta"])
@@ -192,7 +170,7 @@ else:
             except Exception as e: st.error(f"Erro: {str(e)}")
         st.markdown("---  \n**🧮 Conversor de Sistemas de Numeração (Arquitetura de Computadores)**")
         dec = st.number_input("Decimal:", min_value=0, value=42)
-        st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].upper()}`")
+        st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].white().upper() if hasattr(str, 'white') else hex(dec)[2:].upper()}`")
 
     with ab2:
         st.subheader("Operações Avançadas entre Duas Matrizes")
@@ -205,14 +183,11 @@ else:
                 matrizA_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasA]
                 linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
                 matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
-                
                 rel, trans, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
                 st.info(f"⚡ **Desempenho Algorítmico:** Operação matricial concluída em **{round(dt_m, 4)} ms** | Complexidade: $O(n^3)$")
                 if fig_m: st.pyplot(fig_m)
-                
-                matA = np.array(matrizA_list, dtype=float)
-                matB = np.array(matrizB_list, dtype=float)
+                matA, matB = np.array(matrizA_list, dtype=float), np.array(matrizB_list, dtype=float)
                 if matA.shape == matB.shape:
                     st.markdown("---")
                     st.markdown("**Soma Aditiva (A + B):**")
@@ -235,12 +210,9 @@ else:
                 for comb in list(itertools.product([True, False], repeat=len(vars_l))):
                     ctx = dict(zip(vars_l, comb))
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
-                    
-                    # --- CORREÇÃO DE ÍNDICE TIPO LISTA EFETUADA COM SUCESSO AQUI ---
                     if "->" in expr:
                         p = expr.split("->")
                         expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
-                        
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
