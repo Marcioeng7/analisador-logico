@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V27.2 (Reconstrução Completa com Carga de CSV à Prova de Falhas)
+Versão: V27.3 (Inclusão de Traço e Posto Matricial Dinâmico)
 Ano: 2026
 """
 
@@ -260,7 +260,7 @@ else:
         st.rerun()
 
 # ===================================================================
-# 5. MOTOR MATRICIAL REFORÇADO (PROPRIEDADES + DECOMPOSIÇÃO ESPECTRAL)
+# 5. MOTOR MATRICIAL AVANÇADO (TRAÇO, POSTO, PROPRIEDADES E ESPECTRO)
 # ===================================================================
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
@@ -270,28 +270,32 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         transposta = np_matriz.T.tolist()
         
         det_txt = "N/A (Não Quadrada)"
+        traco_txt = "N/A (Não Quadrada)"
         inversa_np = None
         autovalores = None
         autovetores = None
         propriedades = []
         
+        # Cálculo universal do Posto Matricial (independe de ser quadrada)
+        posto_val = int(np.linalg.matrix_rank(np_matriz))
+        
         if num_linhas == num_colunas:
             det_val = float(np.linalg.det(np_matriz))
             det_txt = f"{round(det_val, 4)}"
+            
+            # Cálculo cirúrgico do Traço (Soma da diagonal principal)
+            traco_txt = f"{round(float(np.trace(np_matriz)), 4)}"
+            
             if abs(det_val) > 1e-9:
                 inversa_np = np.linalg.inv(np_matriz)
             
             autovalores, autovetores = np.linalg.eig(np_matriz)
             
-            # Verificação de Simetria (A == A^T)
+            # Verificação de Propriedades Estruturais
             if np.allclose(np_matriz, np_matriz.T, atol=1e-5):
                 propriedades.append("Simetrica")
-            
-            # Verificação de Matriz Identidade
             if np.allclose(np_matriz, np.eye(num_linhas), atol=1e-5):
                 propriedades.append("Identidade")
-            
-            # Verificação de Matriz Ortogonal (A x A^T == I)
             produto_ortog = np.dot(np_matriz, np_matriz.T)
             if np.allclose(produto_ortog, np.eye(num_linhas), atol=1e-5):
                 propriedades.append("Ortogonal")
@@ -303,6 +307,8 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         relatorio = (
             f"**Dimensão:** {num_linhas}x{num_colunas} | "
             f"**Determinante:** {det_txt} | "
+            f"**Traço:** {traco_txt} | "
+            f"**Posto Matricial:** {posto_val} | "
             f"**Média Global:** {round(float(np.mean(np_matriz)), 4)}\n\n"
             f"📊 **Propriedades Estruturais:** `{txt_prop}`"
         )
@@ -354,7 +360,7 @@ else:
                 txt_regressao = (
                     f"Análise de Regressão Linear Simples:\n"
                     f"Equação de Tendência Ajustada: y = {round(a,4)}x + ({round(b,4)})\n"
-                    f"Coefficiente de Determinação (R²): {round(r2, 4)}"
+                    f"Coeficiente de Determinação (R²): {round(r2, 4)}"
                 )
                 st.markdown(txt_regressao)
                 
@@ -433,8 +439,8 @@ else:
                     st.code(str(np.dot(matA, matB)))
                 else: st.warning("Dimensões incompatíveis para Soma/Subtração direta.")
                 
-                conteudo_pdf_mat = f"{rel}\n\nAutovalores:\n{str(np.round(autovalores, 4)) if autovalores is not None else 'N/A'}\n\nAutovetores:\n{str(np.round(autovetores, 4)) if autovetores is not None else 'N/A'}"
-                pdf_data_mat = gerar_pdf_relatorio("Relatório Técnico - Análise Linear e Espectral", conteudo_pdf_mat)
+                conteudo_pdf_mat = f"{rel.replace('<br>', '\n')}\n\nAutovalores:\n{str(np.round(autovalores, 4)) if autovalores is not None else 'N/A'}\n\nAutovetores:\n{str(np.round(autovetores, 4)) if autovetores is not None else 'N/A'}"
+                pdf_data_mat = gerar_pdf_relatorio("Relatório Técnico - Análise Linear, Espectral e Dimensional", conteudo_pdf_mat)
                 st.download_button("Exportar Laudo Técnico em PDF", pdf_data_mat, "laudo_matricial.pdf", "application/pdf")
                 
             except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
@@ -553,7 +559,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de R2.\n* **RF006 - Módulo de Relatórios:** Geração nativa e dinâmica de laudos em formato PDF via ReportLab.\n* **RF007 - Módulo de Classificação Matricial:** Identificação em tempo real de matrizes simétricas, identidades e ortogonais.")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de R2.\n* **RF006 - Módulo de Relatórios:** Geração nativa e dinâmica de laudos em formato PDF via ReportLab.\n* **RF007 - Módulo de Classificação Matricial:** Identificação em tempo real de matrizes simétricas, identidades e ortogonais.\n* **RF008 - Métricas Dimensionais Lineares:** Processamento de Traço e Posto Matricial dinâmico com indexação em laudo técnico.")
         with col_col2:
             st.subheader("Cenário de Caso de Uso: Efetuar Cadastro")
             st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Salva na tabela física local -> Libera Token.")
