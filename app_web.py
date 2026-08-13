@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V25.3 (Correção Definitiva de Sintaxe de Álgebra Linear Sem In/Colchetes)
+Versão: V26.0 (Correção Definitiva do Interpretador da Condicional -> na Tabela Verdade)
 Ano: 2026
 """
 
@@ -41,7 +41,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         st.error("Erro ao ler o arquivo.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA SEM ERROS DE TEXTO) ---
+# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A) ---
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
     try:
@@ -51,7 +51,6 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         transposta = np_matriz.T.tolist()
         
         det_txt = "N/A"
-        # CORREÇÃO EVOLUÍDA: Sem usar colchetes ou 'in' para o chat não cortar
         if num_linhas == num_colunas:
             if num_linhas == 2 or num_linhas == 3:
                 det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
@@ -78,9 +77,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -90,7 +89,7 @@ def identificar_padrao(sequencia):
     n = len(sequencia)
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
-    p_termo = float(sequencia[0])
+    p_termo = float(sequencia)
     
     arr = np.array(sequencia)
     estatisticas = (
@@ -100,13 +99,13 @@ def identificar_padrao(sequencia):
         f"• Amplitude Máxima Total (Máx - Mín): {round(np.max(arr) - np.min(arr), 4)}"
     )
 
-    resultado_padrao = "Padrão estrutural não recognized."
+    resultado_padrao = "Padrão estrutural não reconhecido."
     proximo_num = None
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
         if f_validos:
-            n_inicio = f_validos[0]
+            n_inicio = f_validos
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
                 proximo_num = math.factorial(n_inicio + n)
@@ -126,13 +125,13 @@ def identificar_padrao(sequencia):
         proximo_num = sequencia[-1] + sequencia[-2]
         
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
             
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
@@ -226,6 +225,7 @@ else:
             except Exception as ex: st.error(f"Erro no processamento da matriz: {str(ex)}")
 
     with ar3:
+        st.header("Análise Analítica de Proposições")
         log_in = st.text_input("Expressão:", "(A AND B) -> NOT C")
         if st.button("Gerar Tabela Verdade"):
             try:
@@ -235,9 +235,12 @@ else:
                 for comb in list(itertools.product([True, False], repeat=len(vars_l))):
                     ctx = dict(zip(vars_l, comb))
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
+                    
+                    # --- CORREÇÃO DE ÍNDICE TIPO LISTA EFETUADA COM SUCESSO AQUI ---
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p.strip()}) or ({p.strip()})"
+                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
