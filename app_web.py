@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V19.1 (Versão Final Consolidada ADS - Correção Strip de Listas)
+Versão: V20.0 (Módulo de Autocadastro de Usuários e Banco de Dados Simulado)
 Ano: 2026
 """
 
@@ -21,8 +21,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ARQUITETURA DE BANCO DE DADOS SIMULADA ---
+# --- ARQUITETURA DE BANCO DE DADOS SIMULADA (PADRÃO ADS) ---
 if "tabela_usuarios" not in st.session_state:
+    # Marcio e professor iniciam pré-cadastrados no sistema
     st.session_state["tabela_usuarios"] = {
         "marcio": "admin123",
         "professor": "ads2026"
@@ -131,12 +132,9 @@ def analisar_propriedades(sequencia):
     if not all(isinstance(x, int) for x in sequencia):
         return ""
     properties = []
-    if all(x % 2 == 0 for x in sequencia):
-        properties.append("Pares")
-    elif all(x % 2 != 0 for x in sequencia):
-        properties.append("Ímpares")
-    if all(eh_primo(x) for x in sequencia):
-        properties.append("Primos")
+    if append_even := all(x % 2 == 0 for x in sequencia): properties.append("Pares")
+    if append_odd := all(x % 2 != 0 for x in sequencia): properties.append("Ímpares")
+    if all(eh_primo(x) for x in sequencia): properties.append("Primos")
     return f"**Propriedade:** {', '.join(properties)}." if properties else ""
 
 def identificar_padrao(sequencia):
@@ -146,7 +144,6 @@ def identificar_padrao(sequencia):
     prop_txt = analisar_propriedades(sequencia)
     serie_txt = checar_convergencia_serie(sequencia)
 
-    # 1. TESTE: Fatorial
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         p_termo = sequencia[0]
         fatoriais_validos = [i for i in range(1, 14) if math.factorial(i) == p_termo]
@@ -155,7 +152,6 @@ def identificar_padrao(sequencia):
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 return "Sequência Fatorial (n!)", math.factorial(n_inicio + n)
 
-    # 2. TESTE: Quadrados Perfeitos
     if all(x >= 0 for x in sequencia):
         p_termo = sequencia[0]
         if (p_termo**0.5).is_integer():
@@ -163,13 +159,11 @@ def identificar_padrao(sequencia):
             if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
                 return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
 
-    # 3. TESTE: Cubos Perfeitos
     p_termo = sequencia[0]
     raiz_cubica_primeiro = round(p_termo**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
         return "Sequência de Cubos Perfeitos (n³)", (raiz_cubica_primeiro + n)**3
 
-    # 4. TESTE: Números Triangulares
     try:
         det = 1 + 8 * sequencia[0]
         if det >= 0 and (det**0.5).is_integer():
@@ -180,17 +174,14 @@ def identificar_padrao(sequencia):
     except Exception:
         pass
 
-    # 5. TESTE: Fibonacci
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
 
-    # 6. TESTE: Progressão Aritmética (PA)
     if n >= 2:
         razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt} {prop_txt}", sequencia[-1] + razao_pa
 
-    # 7. TESTE: Progressão Geométrica (PG)
     if all(x != 0 for x in sequencia) and n >= 2:
         razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
@@ -204,23 +195,43 @@ def identificar_padrao(sequencia):
 
     return ("Padrão complexo não reconhecido.", None)
 
-# --- INTERFACE VISUAL DA PLATAFORMA ---
+# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E AUTOCADASTRO) ---
 
-st.sidebar.title("🔒 Segurança do Sistema")
+st.sidebar.title("🔒 Área de Acesso")
+
 if st.session_state["usuario_logado"] is None:
-    st.sidebar.subheader("Acesso à Área Restrita")
-    campo_usuario = st.sidebar.text_input("Usuário:")
-    campo_senha = st.sidebar.text_input("Senha:", type="password")
-    if st.sidebar.button("Autenticar no Banco"):
-        if campo_usuario in st.session_state["tabela_usuarios"] and st.session_state["tabela_usuarios"][campo_usuario] == campo_senha:
-            st.session_state["usuario_logado"] = campo_usuario
-            st.sidebar.success(f"Conectado: {campo_usuario}")
-            st.rerun()
-        else:
-            st.sidebar.error("Credenciais inválidas no Banco de Dados.")
+    # Cria duas abas de navegação dentro da própria barra lateral esquerda
+    aba_acesso1, aba_acesso2 = st.sidebar.tabs(["Acessar", "Criar Conta"])
+    
+    with aba_acesso1:
+        st.subheader("Login de Usuário")
+        campo_usuario = st.text_input("Usuário:", key="login_user")
+        campo_senha = st.text_input("Senha:", type="password", key="login_pass")
+        if st.button("Entrar no Sistema", key="btn_login"):
+            if campo_usuario in st.session_state["tabela_usuarios"] and st.session_state["tabela_usuarios"][campo_usuario] == campo_senha:
+                st.session_state["usuario_logado"] = campo_usuario
+                st.sidebar.success(f"Conectado!")
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos.")
+                
+    with aba_acesso2:
+        st.subheader("Novo Cadastro")
+        novo_usuario = st.text_input("Escolha um Usuário:", key="cad_user").strip().lower()
+        nova_senha = st.text_input("Escolha uma Senha:", type="password", key="cad_pass")
+        
+        if st.button("Registrar no Banco", key="btn_cadastro"):
+            if novo_usuario == "" or nova_senha == "":
+                st.error("Preencha todos os campos!")
+            elif novo_usuario in st.session_state["tabela_usuarios"]:
+                st.warning("Este nome de usuário já existe no sistema.")
+            else:
+                # Injeta dinamicamente as credenciais na memória do banco simulado
+                st.session_state["tabela_usuarios"][novo_usuario] = nova_senha
+                st.success(f"Usuário `{novo_usuario}` cadastrado com sucesso! Vá na aba 'Acessar' para fazer o login.")
 else:
     st.sidebar.write(f"👤 **Logado como:** `{st.session_state['usuario_logado']}`")
-    st.sidebar.info("Nível de Acesso: Desenvolvedor")
+    st.sidebar.info("Nível de Acesso: Autorizado")
     if st.sidebar.button("Desconectar do Servidor"):
         st.session_state["usuario_logado"] = None
         st.rerun()
@@ -229,8 +240,8 @@ st.title("🖥️ Central Computacional Prática de ADS & Engenharia")
 st.markdown("Software estruturado em conformidade com as diretrizes do curso de **Análise e Desenvolvimento de Sistemas**.")
 
 if st.session_state["usuario_logado"] is None:
-    st.warning("⚠️ **Acesso Negado.** Por favor, efetue o login no painel lateral para liberar os motores analíticos.")
-    st.info("💡 **Dica de Teste para Professores:** Use Usuário: `marcio` e Senha: `admin123`")
+    st.warning("⚠️ **Acesso Negado.** Por favor, efetue o login ou realize o autocadastro no painel lateral para liberar o sistema.")
+    st.info("💡 **Dica de Acesso Rápido:** Use Usuário: `marcio` e Senha: `admin123` ou clique em **Criar Conta** para testar o banco de dados simulado!")
 else:
     st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
     arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
@@ -307,7 +318,7 @@ else:
             except Exception as e:
                 st.error(f"Erro na matriz: {str(e)}")
 
-    # LÓGICA DA ABA 3: TABELA VERDADE (CORREÇÃO STRIP DEFINITIVA APLICADA)
+    # LÓGICA DA ABA 3: TABELA VERDADE
     with aba3:
         st.header("Análise Analítica de Proposições")
         expr_logica = st.text_input("Expressão:", "(A AND B) -> NOT C")
@@ -321,7 +332,6 @@ else:
                     contexto = dict(zip(variaveis, comb))
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     
-                    # --- OPERAÇÃO DE STRIP CORRIGIDA INDEXADA (SEM ERROS DE LISTAS) ---
                     if "->" in expr:
                         p = expr.split("->")
                         expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
@@ -360,8 +370,3 @@ else:
         st.subheader("2. Mapeamento de Engenharia de Software por Disciplinas (ADS)")
         st.markdown("""
         *   **Lógica de Programação:** Implementada na Aba 3 através do motor que decodifica strings literais, mapeia permutações binárias combinatórias e avalia a tabela verdade resultante.
-        *   **Estruturas de Dados Avançadas:** Utilização de vetores e arranjos multidimensionais (matrizes dinâmicas do tipo *List of Lists*) manipuladas e remapeadas através de compreensões de listas lineares.
-        *   **Segurança da Informação:** Simulação de barreira de firewall e controle de sessão (*Session Control*). O sistema bloqueia os motores computacionais e as consultas de banco de dados caso o token `usuario_logado` não esteja autenticado contra a tabela hash de credenciais.
-        *   **Banco de Dados:** Mapeamento estruturado de logs transacionais através de esquemas relacionais de chaves.
-        *   **DevOps:** Gerenciamento distribuído de código através do Git e do repositório no GitHub integrado ao pipeline de deploy contínuo em nuvem.
-        """)
