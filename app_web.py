@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V25.2 (Correção da Sintaxe de Condicional do Determinante NumPy)
+Versão: V25.3 (Correção Definitiva de Sintaxe de Álgebra Linear Sem In/Colchetes)
 Ano: 2026
 """
 
@@ -41,7 +41,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         st.error("Erro ao ler o arquivo.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA) ---
+# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA SEM ERROS DE TEXTO) ---
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
     try:
@@ -51,9 +51,9 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         transposta = np_matriz.T.tolist()
         
         det_txt = "N/A"
-        # CORREÇÃO CRÍTICA: Sintaxe fechada e corrigida com os valores da lista
+        # CORREÇÃO EVOLUÍDA: Sem usar colchetes ou 'in' para o chat não cortar
         if num_linhas == num_colunas:
-            if num_linhas in:
+            if num_linhas == 2 or num_linhas == 3:
                 det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
                 
         t_fim = time.perf_counter()
@@ -78,9 +78,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia / sequencia
+            r_prop = sequencia[1] / sequencia[0]
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -100,7 +100,7 @@ def identificar_padrao(sequencia):
         f"• Amplitude Máxima Total (Máx - Mín): {round(np.max(arr) - np.min(arr), 4)}"
     )
 
-    resultado_padrao = "Padrão estrutural não reconhecido."
+    resultado_padrao = "Padrão estrutural não recognized."
     proximo_num = None
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
@@ -237,7 +237,7 @@ else:
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        expr = f"not ({p.strip()}) or ({p.strip()})"
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
@@ -271,7 +271,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Criação de credenciais encriptadas em memória.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para token nulo.\\n* **RF003 - Análise de Complexidade:** Cronometragem algorítmica em milissegundos.")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais em hash dinâmico.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
-            st.success("* **Atores:** Visitante ou Professor.\\n* **Fluxo:** Acessa 'Criar Conta' -> Fornece ID e Chave -> Valida contra tabela hash -> Registra novo nó.")
+            st.success("* **Atores:** Usuário Acadêmico ou Professor.\\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Mapeia na Tabela Hash do Servidor -> Libera Token.")
