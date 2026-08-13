@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V27.1 (Sistema Completo com Tratamento de Parse XML no ReportLab)
+Versão: V27.2 (Divisão Estrita em 6 Blocos - Classificador Matricial)
 Ano: 2026
 """
 
@@ -84,7 +84,7 @@ BANCO_QUESTOES = [
 ]
 
 # ===================================================================
-# 2. MOTOR REVISADO DE EXPORTAÇÃO PDF (PROTEÇÃO CONTRA EXCEÇÕES DE PARSE)
+# 2. MOTOR REVISADO DE EXPORTAÇÃO PDF (PROTEÇÃO CONTRA ERROS DE PARSE XML)
 # ===================================================================
 def gerar_pdf_relatorio(titulo_doc, texto_conteudo):
     buffer = io.BytesIO()
@@ -134,7 +134,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo.")
@@ -159,9 +159,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\nSerie: Harmonica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia / sequencia
+            r_prop = sequencia[1] / sequencia[0]
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\nSerie: Geometrica Convergente. Limite: {round(sequencia/(1-r_prop), 4)}."
+                return f"\n\nSerie: Geometrica Convergente. Limite: {round(sequencia[0]/(1-r_prop), 4)}."
         except Exception: pass
     return ""
 
@@ -177,7 +177,7 @@ def identificar_padrao(sequencia):
         f"---\n"
         f"**Painel Estatistico Descritivo (Modulo de Dados):**\n"
         f"• Media Aritmetica: {round(np.mean(arr), 4)} | • Mediana Central: {round(np.median(arr), 4)}\n"
-        f"• Desvio Padrao: {round(np.std(arr), 4)} | • Variancian da Amostra: {round(np.var(arr), 4)}\n"
+        f"• Desvio Padrao: {round(np.std(arr), 4)} | • Variancia da Amostra: {round(np.var(arr), 4)}\n"
         f"• Amplitude Maxima Total (Max - Min): {round(np.max(arr) - np.min(arr), 4)}"
     )
     resultado_padrao = "Padrao estrutural nao reconhecido."
@@ -197,7 +197,7 @@ def identificar_padrao(sequencia):
         resultado_padrao = f"Sequencia de Cubos Perfeitos (n³){serie_txt}"
         proximo_num = (round(p_termo**(1/3)) + n)**3
     if proximo_num is None and all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
-        resultado_padrao = "Sequência de Fibonacci"
+        resultado_padrao = "Sequencia de Fibonacci"
         proximo_num = sequencia[-1] + sequencia[-2]
     if proximo_num is None and n >= 2:
         razao_pa = sequencia[1] - sequencia[0]
@@ -249,7 +249,7 @@ else:
         st.rerun()
 
 # ===================================================================
-# 5. FUNÇÃO MATRICIAL COMPLETA (INVERSA + TRANSPOSTA + AUTOVALORES)
+# 5. MOTOR MATRICIAL REFORÇADO (PROPRIEDADES + DECOMPOSIÇÃO ESPECTRAL)
 # ===================================================================
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
@@ -262,6 +262,7 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         inversa_np = None
         autovalores = None
         autovetores = None
+        propriedades = []
         
         if num_linhas == num_colunas:
             det_val = float(np.linalg.det(np_matriz))
@@ -269,14 +270,33 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
             if abs(det_val) > 1e-9:
                 inversa_np = np.linalg.inv(np_matriz)
             
-            # Cálculo de Autovalores e Autovetores via NumPy
             autovalores, autovetores = np.linalg.eig(np_matriz)
+            
+            # --- MODULO CIRÚRGICO DE VALIDAÇÃO DE PROPRIEDADES (OPÇÃO 2) ---
+            # 1. Verificação de Simetria (A == A^T)
+            if np.allclose(np_matriz, np_matriz.T, atol=1e-5):
+                propriedades.append("Simetrica")
+            
+            # 2. Verificação de Matriz Identidade
+            if np.allclose(np_matriz, np.eye(num_linhas), atol=1e-5):
+                propriedades.append("Identidade")
+            
+            # 3. Verificação de Matriz Ortogonal (A x A^T == I)
+            produto_ortog = np.dot(np_matriz, np_matriz.T)
+            if np.allclose(produto_ortog, np.eye(num_linhas), atol=1e-5):
+                propriedades.append("Ortogonal")
+        
+        txt_prop = " | ".join(propriedades) if propriedades else "Nenhuma propriedade trivial detectada"
         
         t_fim = time.perf_counter()
         delta_t = (t_fim - t_inicio) * 1000
-        relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
+        relatorio = (
+            f"**Dimensão:** {num_linhas}x{num_colunas} | "
+            f"**Determinante:** {det_txt} | "
+            f"**Média Global:** {round(float(np.mean(np_matriz)), 4)}\n\n"
+            f"📊 **Propriedades Estruturais:** `{txt_prop}`"
+        )
         
-        # Plotagem adaptativa da malha topográfica
         fig = plt.figure(figsize=(4, 2.5))
         ax = fig.add_subplot(111, projection='3d')
         X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
@@ -335,7 +355,6 @@ else:
                 st.pyplot(fig)
                 plt.close(fig)
                 
-                # Geração de PDF Técnico da Sequência
                 conteudo_pdf_seq = f"{pad}\n\n{txt_regressao}"
                 pdf_data = gerar_pdf_relatorio("Relatório Técnico - Análise de Sequências e Regressão", conteudo_pdf_seq)
                 st.download_button("Exportar Relatório em PDF", pdf_data, "relatorio_sequencia.pdf", "application/pdf")
@@ -380,7 +399,6 @@ else:
                     else:
                         st.warning("Inversa Indisponível (Determinante Nulo ou Não Quadrada).")
                 
-                # Exibição Espectral Avançada
                 st.markdown("---")
                 st.subheader("Decomposição Espectral (Autovalores e Autovetores)")
                 if autovalores is not None:
@@ -405,7 +423,6 @@ else:
                     st.code(str(np.dot(matA, matB)))
                 else: st.warning("Dimensões incompatíveis para Soma/Subtração direta.")
                 
-                # Geração de PDF Técnico da Álgebra Matricial
                 conteudo_pdf_mat = f"{rel}\n\nAutovalores:\n{str(np.round(autovalores, 4)) if autovalores is not None else 'N/A'}\n\nAutovetores:\n{str(np.round(autovetores, 4)) if autovetores is not None else 'N/A'}"
                 pdf_data_mat = gerar_pdf_relatorio("Relatório Técnico - Análise Linear e Espectral", conteudo_pdf_mat)
                 st.download_button("Exportar Laudo Técnico em PDF", pdf_data_mat, "laudo_matricial.pdf", "application/pdf")
@@ -480,7 +497,7 @@ else:
                     salvar_tabela_ranking()
                     salvar_tabela_historico()
             with col_q2:
-                if st.button("Próxima Questão "):
+                if st.button("Próxima Questão ➡️"):
                     if st.session_state["indice_pergunta"] + 1 < len(BANCO_QUESTOES):
                         st.session_state["indice_pergunta"] += 1
                     else:
@@ -489,7 +506,7 @@ else:
         else:
             st.balloons()
             st.success("Você concluiu todas as questões disponíveis no banco analítico!")
-            if st.button("Reiniciar Quiz "):
+            if st.button("Reiniciar Quiz 🔄"):
                 st.session_state["indice_pergunta"] = 0
                 st.session_state["quiz_concluido"] = False
                 st.rerun()
@@ -527,7 +544,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de R2.\n* **RF006 - Módulo de Relatórios:** Geração nativa e dinâmica de laudos em formato PDF via ReportLab.")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.\n* **RF005 - Estatística Avançada:** Modelagem matemática preditiva por Regressão Linear com cálculo de R2.\n* **RF006 - Módulo de Relatórios:** Geração nativa e dinâmica de laudos em formato PDF via ReportLab.\n* **RF007 - Módulo de Classificação Matricial:** Identificação em tempo real de matrizes simétricas, identidades e ortogonais.")
         with col_col2:
             st.subheader("Cenário de Caso de Uso: Efetuar Cadastro")
             st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Salva na tabela física local -> Libera Token.")
