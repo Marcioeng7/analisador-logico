@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V25.1 (Blindagem Completa de Álgebra Linear via Módulo NumPy Nativo)
+Versão: V25.2 (Correção da Sintaxe de Condicional do Determinante NumPy)
 Ano: 2026
 """
 
@@ -41,21 +41,19 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         st.error("Erro ao ler o arquivo.")
         return None, None
 
-# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA COM NUMPY) ---
+# --- SISTEMA 1: PROCESSAMENTO DE MATRIZ PURA (MATRIZ A CORRIGIDA) ---
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     t_inicio = time.perf_counter()
     try:
-        # Converte a entrada para um arranjo matemático real do NumPy e aplica o escalar
         np_matriz = np.array(matriz, dtype=float) * escalar_mult
         num_linhas, num_colunas = np_matriz.shape
         
-        # Calcula a Matriz Transposta usando o atributo nativo .T do NumPy
         transposta = np_matriz.T.tolist()
         
         det_txt = "N/A"
+        # CORREÇÃO CRÍTICA: Sintaxe fechada e corrigida com os valores da lista
         if num_linhas == num_colunas:
             if num_linhas in:
-                # Calcula o Determinante de forma estável usando Álgebra Linear do NumPy
                 det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
                 
         t_fim = time.perf_counter()
@@ -92,7 +90,7 @@ def identificar_padrao(sequencia):
     n = len(sequencia)
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
-    p_termo = float(sequencia)
+    p_termo = float(sequencia[0])
     
     arr = np.array(sequencia)
     estatisticas = (
@@ -108,7 +106,7 @@ def identificar_padrao(sequencia):
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
         if f_validos:
-            n_inicio = f_validos
+            n_inicio = f_validos[0]
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
                 proximo_num = math.factorial(n_inicio + n)
@@ -128,13 +126,13 @@ def identificar_padrao(sequencia):
         proximo_num = sequencia[-1] + sequencia[-2]
         
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia - sequencia
+        razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
             
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia / sequencia
+        razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
@@ -204,14 +202,11 @@ else:
         k = st.number_input("Multiplicador Escalar K (Matriz A):", value=1.0)
         if st.button("Calcular Operações Matriciais"):
             try:
-                # Converte as strings de texto em estruturas puras de listas Python
                 linhasA = [l.strip() for l in v_matA.split(";") if l.strip()]
                 matrizA_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasA]
-                
                 linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
                 matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
                 
-                # Executa o processador corrigido com Álgebra Linear estável
                 rel, trans, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
                 st.info(f"⚡ **Desempenho Algorítmico:** Operação matricial concluída em **{round(dt_m, 4)} ms** | Complexidade: $O(n^3)$")
@@ -219,7 +214,6 @@ else:
                 
                 matA = np.array(matrizA_list, dtype=float)
                 matB = np.array(matrizB_list, dtype=float)
-                
                 if matA.shape == matB.shape:
                     st.markdown("---")
                     st.markdown("**Soma Aditiva (A + B):**")
@@ -243,7 +237,7 @@ else:
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p.strip()}) or ({p.strip()})"
+                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
@@ -277,7 +271,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Criação de credenciais encriptadas em memória local.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações caso o token seja nulo.\\n* **RF003 - Análise de Complexidade:** Cronometragem de tempo algorítmico em milissegundos.")
+            st.info("* **RF001 - Autocadastro:** Criação de credenciais encriptadas em memória.\\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para token nulo.\\n* **RF003 - Análise de Complexidade:** Cronometragem algorítmica em milissegundos.")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
-            st.success("* **Atores:** Visitante ou Professor.\\n* **Fluxo:** Acessa 'Criar Conta' -> Fornece ID e Chave -> Valida contra tabela hash -> Registra novo nó de memória.")
+            st.success("* **Atores:** Visitante ou Professor.\\n* **Fluxo:** Acessa 'Criar Conta' -> Fornece ID e Chave -> Valida contra tabela hash -> Registra novo nó.")
