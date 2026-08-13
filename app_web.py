@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V21.0 (Correção Definitiva de Escopo de Listas e Índices Lógicos)
+Versão: V22.0 (Inclusão de Conversores de Base e Classificação de Tautologia)
 Ano: 2026
 """
 
@@ -143,7 +143,6 @@ def identificar_padrao(sequencia):
     prop_txt = analisar_propriedades(sequencia)
     serie_txt = checar_convergencia_serie(sequencia)
 
-    # 1. TESTE: Fatorial (Blindado pegando o número isolado no índice 0)
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         p_termo = sequencia[0]
         fatoriais_validos = [i for i in range(1, 14) if math.factorial(i) == p_termo]
@@ -152,7 +151,6 @@ def identificar_padrao(sequencia):
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
                 return "Sequência Fatorial (n!)", math.factorial(n_inicio + n)
 
-    # 2. TESTE: Quadrados Perfeitos (Blindado pegando o número isolado no índice 0)
     if all(x >= 0 for x in sequencia):
         p_termo = sequencia[0]
         if (p_termo**0.5).is_integer():
@@ -160,13 +158,11 @@ def identificar_padrao(sequencia):
             if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
                 return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
 
-    # 3. TESTE: Cubos Perfeitos (Blindado pegando o número isolado no índice 0)
     p_termo = sequencia[0]
     raiz_cubica_primeiro = round(p_termo**(1/3))
     if all(sequencia[i] == (raiz_cubica_primeiro + i)**3 for i in range(n)):
         return "Sequência de Cubos Perfeitos (n³)", (raiz_cubica_primeiro + n)**3
 
-    # 4. TESTE: Números Triangulares
     try:
         det = 1 + 8 * sequencia[0]
         if det >= 0 and (det**0.5).is_integer():
@@ -177,17 +173,14 @@ def identificar_padrao(sequencia):
     except Exception:
         pass
 
-    # 5. TESTE: Fibonacci
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
 
-    # 6. TESTE: Progressão Aritmética (PA)
     if n >= 2:
         razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt} {prop_txt}", sequencia[-1] + razao_pa
 
-    # 7. TESTE: Progressão Geométrica (PG)
     if all(x != 0 for x in sequencia) and n >= 2:
         razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
@@ -260,7 +253,7 @@ else:
 
     aba1, aba2, aba3, aba4, aba5 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Tabela Verdade", "🗄️ Tabela Banco de Dados", "📚 Documentação ADS (TCC)"])
 
-    # LÓGICA DA ABA 1: SEQUÊNCIAS
+    # LÓGICA DA ABA 1: SEQUÊNCIAS + NOVO CONVERSOR DE BASES (ARQUITETURA DE COMPUTADORES)
     with aba1:
         st.header("Análise de Padrões Sequenciais")
         val_padrao = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
@@ -286,6 +279,20 @@ else:
                 st.pyplot(fig1)
             except Exception as e:
                 st.error(f"Erro na análise de dados: {str(e)}")
+                
+        # --- NOVO RECURSO: CONVERSOR DE BASES DE ARQUITETURA DE COMPUTADORES ---
+        st.markdown("---")
+        st.subheader("🧮 Módulo de Apoio: Conversor de Sistemas de Numeração")
+        st.markdown("*Matéria Relacionada:* **Organização e Arquitetura de Computadores**")
+        num_decimal = st.number_input("Digite um número inteiro decimal para traduzir:", min_value=0, value=42, step=1)
+        
+        c_col1, c_col2, c_col3 = st.columns(3)
+        with c_col1:
+            st.metric(label="Linguagem de Máquina (Binário - Base 2)", value=bin(num_decimal)[2:])
+        with c_col2:
+            st.metric(label="Sistema Octal (Base 8)", value=oct(num_decimal)[2:])
+        with c_col3:
+            st.metric(label="Endereçamento de Memória (Hexadecimal - Base 16)", value=hex(num_decimal)[2:].upper())
 
     # LÓGICA DA ABA 2: MATRIZES
     with aba2:
@@ -322,7 +329,7 @@ else:
             except Exception as e:
                 st.error(f"Erro na matriz: {str(e)}")
 
-    # LÓGICA DA ABA 3: TABELA VERDADE (CORREÇÃO DE ÍNDICE DE LISTAS NO STRIP)
+    # LÓGICA DA ABA 3: TABELA VERDADE + NOVO CLASSIFICADOR LÓGICO AUTOMÁTICO (LÓGICA MATEMÁTICA)
     with aba3:
         st.header("Análise Analítica de Proposições")
         expr_logica = st.text_input("Expressão:", "(A AND B) -> NOT C")
@@ -332,45 +339,33 @@ else:
                 cabecalho = " | ".join(f" {v} " for v in variaveis) + f" |  {expr_logica} \n"
                 texto_final = cabecalho + ("-" * len(cabecalho)) + "\n"
                 combinacoes = list(itertools.product([True, False], repeat=len(variaveis)))
+                
+                # Lista auxiliar para salvar os resultados finais de cada linha e classificar a fórmula
+                coluna_resultados = []
+                
                 for comb in combinacoes:
                     contexto = dict(zip(variaveis, comb))
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     
                     if "->" in expr:
                         partes_cond = expr.split("->")
-                        # CORRIGIDO: Pega os elementos em formato string nos índices 0 e 1 antes de dar .strip()
                         expr = f"not ({partes_cond[0].strip()}) or ({partes_cond[1].strip()})"
                         
                     res = eval(expr, {}, contexto)
+                    coluna_resultados.append(res)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if res else 'F'}\n"
                 
                 st.code(texto_final, language="text")
                 
+                # --- NOVO RECURSO: CLASSIFICADOR AUTOMÁTICO DE MATÉRIA DE LÓGICA ---
+                st.markdown("---")
+                st.subheader("🧠 Classificação Analítica da Proposição")
+                if all(coluna_resultados):
+                    st.success("🎯 A fórmula acima é uma **TAUTOLOGIA**! (Sempre Verdadeira em todas as linhas).")
+                elif not any(coluna_resultados):
+                    st.error("❌ A fórmula acima é uma **CONTRADIÇÃO**! (Sempre Falsa em todas as linhas).")
+                else:
+                    st.info("⚖️ A fórmula acima é uma **CONTINGÊNCIA**! (Possui resultados verdadeiros e falsos dependendo das variáveis).")
+                
                 st.download_button(
-                    label="📥 Baixar Tabela Verdade (.txt)",
-                    data=texto_final,
-                    file_name="tabela_verdade_engenharia.txt",
-                    mime="text/plain"
-                )
-            except Exception as e:
-                st.error(f"Erro na lógica: {str(e)}")
-
-    # LÓGICA DA ABA 4: HISTÓRICO
-    with aba4:
-        st.header("🗄️ Visualização das Tabelas do Banco de Dados")
-        if not st.session_state["tabela_historico"]:
-            st.info("O Banco de Dados de logs está vazio. Execute alguma operação nas abas anteriores para registrar.")
-        else:
-            df_logs = pd.DataFrame(st.session_state["tabela_historico"])
-            df_filtrado = df_logs[df_logs["usuario"] == st.session_state["usuario_logado"]]
-            st.markdown(f"**Tabela: `tb_historico_operacoes` (Filtrada para o usuário: `{st.session_state['usuario_logado']}`)**")
-            st.dataframe(df_filtrado, use_container_width=True)
-
-    # LÓGICA DA ABA 5: DOCUMENTAÇÃO ACADÊMICA
-    with aba5:
-        st.header("📚 Documentação e Fundamentação Teórica do Projeto")
-        st.subheader("1. Visão Geral do Sistema")
-        st.info("**Nome do Projeto:** Central Analítica Multi-Módulo | **Arquitetura:** Web Application (Cliente-Servidor) | **Linguagem Core:** Python | **Deploy:** Streamlit PaaS")
-        st.subheader("2. Mapeamento de Engenharia de Software por Disciplinas (ADS)")
-        st.markdown("* **Lógica de Programação:** Implementada na Aba 3 através do motor que decodifica strings literais, mapeia permutações binárias combinatórias e avalia a tabela verdade resultante.")
