@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V27.2 (Divisão Estrita em 6 Blocos - Classificador Matricial)
+Versão: V27.2 (Reconstrução Completa com Carga de CSV à Prova de Falhas)
 Ano: 2026
 """
 
@@ -25,30 +25,39 @@ import io
 st.set_page_config(page_title="Central Analítica & ADS", page_icon="🖥️", layout="wide")
 
 # ===================================================================
-# 1. MOTOR DE PERSISTÊNCIA REAL DE DADOS (ARQUIVOS CSV)
+# 1. MOTOR DE PERSISTÊNCIA REAL DE DADOS (ARQUIVOS CSV BLINDADOS)
 # ===================================================================
 ARQUIVO_USERS = "usuarios.csv"
 ARQUIVO_RANKING = "ranking.csv"
 ARQUIVO_HISTORICO = "historico.csv"
 
 def carregar_dados_locais():
-    if os.path.exists(ARQUIVO_USERS):
-        df = pd.read_csv(ARQUIVO_USERS)
-        st.session_state["tabela_usuarios"] = dict(zip(df["usuario"], df["senha"]))
-    else:
+    # Inicialização segura de Usuários
+    try:
+        if os.path.exists(ARQUIVO_USERS) and os.path.getsize(ARQUIVO_USERS) > 0:
+            df = pd.read_csv(ARQUIVO_USERS)
+            st.session_state["tabela_usuarios"] = dict(zip(df["usuario"], df["senha"]))
+        else: raise Exception
+    except Exception:
         st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
         pd.DataFrame(list(st.session_state["tabela_usuarios"].items()), columns=["usuario", "senha"]).to_csv(ARQUIVO_USERS, index=False)
 
-    if os.path.exists(ARQUIVO_RANKING):
-        df = pd.read_csv(ARQUIVO_RANKING)
-        st.session_state["tabela_ranking"] = dict(zip(df["usuario"], df["pontos"]))
-    else:
+    # Inicialização segura do Ranking
+    try:
+        if os.path.exists(ARQUIVO_RANKING) and os.path.getsize(ARQUIVO_RANKING) > 0:
+            df = pd.read_csv(ARQUIVO_RANKING)
+            st.session_state["tabela_ranking"] = dict(zip(df["usuario"], df["pontos"]))
+        else: raise Exception
+    except Exception:
         st.session_state["tabela_ranking"] = {"marcio": 1, "professor": 0}
         pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["usuario", "pontos"]).to_csv(ARQUIVO_RANKING, index=False)
 
-    if os.path.exists(ARQUIVO_HISTORICO):
-        st.session_state["tabela_historico"] = pd.read_csv(ARQUIVO_HISTORICO).to_dict(orient="records")
-    else:
+    # Inicialização segura do Histórico (Cura definitiva do EmptyDataError)
+    try:
+        if os.path.exists(ARQUIVO_HISTORICO) and os.path.getsize(ARQUIVO_HISTORICO) > 0:
+            st.session_state["tabela_historico"] = pd.read_csv(ARQUIVO_HISTORICO).to_dict(orient="records")
+        else: raise Exception
+    except Exception:
         st.session_state["tabela_historico"] = []
         pd.DataFrame(columns=["Timestamp", "Usuário", "Questão", "Resultado"]).to_csv(ARQUIVO_HISTORICO, index=False)
 
@@ -62,6 +71,8 @@ def salvar_tabela_ranking():
 
 def salvar_tabela_historico():
     df = pd.DataFrame(st.session_state["tabela_historico"])
+    if df.empty:
+        df = pd.DataFrame(columns=["Timestamp", "Usuário", "Questão", "Resultado"])
     df.to_csv(ARQUIVO_HISTORICO, index=False)
 
 carregar_dados_locais()
@@ -134,7 +145,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo.")
@@ -159,9 +170,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\nSerie: Harmonica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\nSerie: Geometrica Convergente. Limite: {round(sequencia[0]/(1-r_prop), 4)}."
+                return f"\n\nSerie: Geometrica Convergente. Limite: {round(sequencia/(1-r_prop), 4)}."
         except Exception: pass
     return ""
 
@@ -272,16 +283,15 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
             
             autovalores, autovetores = np.linalg.eig(np_matriz)
             
-            # --- MODULO CIRÚRGICO DE VALIDAÇÃO DE PROPRIEDADES (OPÇÃO 2) ---
-            # 1. Verificação de Simetria (A == A^T)
+            # Verificação de Simetria (A == A^T)
             if np.allclose(np_matriz, np_matriz.T, atol=1e-5):
                 propriedades.append("Simetrica")
             
-            # 2. Verificação de Matriz Identidade
+            # Verificação de Matriz Identidade
             if np.allclose(np_matriz, np.eye(num_linhas), atol=1e-5):
                 propriedades.append("Identidade")
             
-            # 3. Verificação de Matriz Ortogonal (A x A^T == I)
+            # Verificação de Matriz Ortogonal (A x A^T == I)
             produto_ortog = np.dot(np_matriz, np_matriz.T)
             if np.allclose(produto_ortog, np.eye(num_linhas), atol=1e-5):
                 propriedades.append("Ortogonal")
@@ -344,7 +354,7 @@ else:
                 txt_regressao = (
                     f"Análise de Regressão Linear Simples:\n"
                     f"Equação de Tendência Ajustada: y = {round(a,4)}x + ({round(b,4)})\n"
-                    f"Coeficiente de Determinação (R²): {round(r2, 4)}"
+                    f"Coefficiente de Determinação (R²): {round(r2, 4)}"
                 )
                 st.markdown(txt_regressao)
                 
@@ -465,7 +475,6 @@ else:
                 with col_down1:
                     st.download_button("Baixar Tabela (.txt)", txt_t, "tabela.txt")
                 with col_down2:
-                    # Geração de Relatório PDF da Tabela Verdade
                     pdf_data_log = gerar_pdf_relatorio("Laudo Lógico - Mapeamento de Proposições", f"Expressão: {log_in}\nClassificação: {classif}\n\nEstrutura mapeada e validada com sucesso.")
                     st.download_button("Baixar Laudo em PDF", pdf_data_log, "laudo_logico.pdf", "application/pdf")
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
@@ -490,10 +499,10 @@ else:
                     if letra_escolhida == questao_atual["correta"]:
                         st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
                         st.success(f"Correto, {user_atual.capitalize()}! +1 Ponto computado.")
-                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Result": "Acertou"})
+                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Resultado": "Acertou"})
                     else:
                         st.error(f"Incorreto! A resposta correta era a alternativa {questao_atual['correta']}.")
-                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Result": "Errou"})
+                        st.session_state["tabela_historico"].append({"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Usuário": user_atual, "Questão": idx + 1, "Resultado": "Errou"})
                     salvar_tabela_ranking()
                     salvar_tabela_historico()
             with col_q2:
