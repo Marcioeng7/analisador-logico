@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.3 (Persistência Real em Bancos de Dados CSV Locais)
+Versão: V26.3 (Reconstrução Completa Sem Perda de Índices)
 Ano: 2026
 """
 
@@ -25,7 +25,6 @@ ARQUIVO_RANKING = "ranking.csv"
 ARQUIVO_HISTORICO = "historico.csv"
 
 def carregar_dados_locais():
-    # Inicialização da Tabela de Usuários
     if os.path.exists(ARQUIVO_USERS):
         df = pd.read_csv(ARQUIVO_USERS)
         st.session_state["tabela_usuarios"] = dict(zip(df["usuario"], df["senha"]))
@@ -33,7 +32,6 @@ def carregar_dados_locais():
         st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
         pd.DataFrame(list(st.session_state["tabela_usuarios"].items()), columns=["usuario", "senha"]).to_csv(ARQUIVO_USERS, index=False)
 
-    # Inicialização do Ranking do Quiz
     if os.path.exists(ARQUIVO_RANKING):
         df = pd.read_csv(ARQUIVO_RANKING)
         st.session_state["tabela_ranking"] = dict(zip(df["usuario"], df["pontos"]))
@@ -41,12 +39,10 @@ def carregar_dados_locais():
         st.session_state["tabela_ranking"] = {"marcio": 1, "professor": 0}
         pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["usuario", "pontos"]).to_csv(ARQUIVO_RANKING, index=False)
 
-    # Inicialização do Log Histórico
     if os.path.exists(ARQUIVO_HISTORICO):
         st.session_state["tabela_historico"] = pd.read_csv(ARQUIVO_HISTORICO).to_dict(orient="records")
     else:
         st.session_state["tabela_historico"] = []
-        # Cria arquivo vazio com cabeçalhos estruturados
         pd.DataFrame(columns=["Timestamp", "Usuário", "Questão", "Resultado"]).to_csv(ARQUIVO_HISTORICO, index=False)
 
 def salvar_tabela_usuarios():
@@ -61,10 +57,8 @@ def salvar_tabela_historico():
     df = pd.DataFrame(st.session_state["tabela_historico"])
     df.to_csv(ARQUIVO_HISTORICO, index=False)
 
-# Executa a carga inicial de dados direto do disco rígido
 carregar_dados_locais()
 
-# Inicialização de estados voláteis da sessão do Streamlit
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 if "indice_pergunta" not in st.session_state:
@@ -72,7 +66,6 @@ if "indice_pergunta" not in st.session_state:
 if "quiz_concluido" not in st.session_state:
     st.session_state["quiz_concluido"] = False
 
-# Banco de dados estático de questões do Quiz
 BANCO_QUESTOES = [
     {
         "pergunta": "Na arquitetura de computadores, o número decimal 10 equivale a qual representação binária?",
@@ -86,7 +79,7 @@ BANCO_QUESTOES = [
     },
     {
         "pergunta": "Na Engenharia de Software, qual diagrama da UML é focado no aspecto comportamental e na interação de atores com o sistema?",
-        "opcoes": ["A) Diagrama de Classes", "B) Diagrama de Casos de Uso", "C) Diagrama de Implantação", "D) Diagrama de Objetos"],
+        "opcoes": ["A) Diagrama de Classes", "B) Diagrama de Casos de Uso", "C) Diagrama de Implantação", "D) Diagrama de Objects"],
         "correta": "B"
     },
     {
@@ -105,7 +98,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo.")
@@ -139,9 +132,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia / sequencia
+            r_prop = sequencia[1] / sequencia[0]
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -151,7 +144,7 @@ def identificar_padrao(sequencia):
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
     
-    p_termo = float(sequencia)
+    p_termo = float(sequencia[0])
     arr = np.array(sequencia)
     estatisticas = (
         f"---  \n📊 **Painel Estatístico Descritivo (Módulo de Dados):**  \n"
@@ -164,9 +157,9 @@ def identificar_padrao(sequencia):
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
-        if f_validos and all(sequencia[i] == math.factorial(f_validos + i) for i in range(n)):
+        if f_validos and all(sequencia[i] == math.factorial(f_validos[0] + i) for i in range(n)):
             resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
-            proximo_num = math.factorial(f_validos + n)
+            proximo_num = math.factorial(f_validos[0] + n)
     if proximo_num is None and all(x >= 0 for x in sequencia) and (p_termo**0.5).is_integer():
         r_start = int(p_termo**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
@@ -179,12 +172,12 @@ def identificar_padrao(sequencia):
         resultado_padrao = "Sequência de Fibonacci"
         proximo_num = sequencia[-1] + sequencia[-2]
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia - sequencia
+        razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia / sequencia
+        razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
@@ -211,11 +204,9 @@ if st.session_state["usuario_logado"] is None:
         n_pass = st.text_input("Nova Senha:", type="password", key="c_pass")
         if st.button("Registrar", key="b_cad"):
             if n_user and n_pass and n_user not in st.session_state["tabela_usuarios"]:
-                # Registra na memória interna
                 st.session_state["tabela_usuarios"][n_user] = n_pass
                 st.session_state["tabela_ranking"][n_user] = 0
                 
-                # GRAVAÇÃO CIRÚRGICA NO DISCO: Persiste imediatamente nos arquivos CSV
                 salvar_tabela_usuarios()
                 salvar_tabela_ranking()
                 
@@ -338,7 +329,6 @@ else:
         user_atual = st.session_state["usuario_logado"]
         idx = st.session_state["indice_pergunta"]
         
-        # Verifica se ainda existem perguntas disponíveis no banco
         if not st.session_state["quiz_concluido"] and idx < len(BANCO_QUESTOES):
             questao_atual = BANCO_QUESTOES[idx]
             
@@ -357,7 +347,6 @@ else:
                         st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
                         st.success(f"🎯 Correto, {user_atual.capitalize()}! +1 Ponto computado.")
                         
-                        # Alimenta a lista em memória
                         st.session_state["tabela_historico"].append({
                             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "Usuário": user_atual,
@@ -373,7 +362,6 @@ else:
                             "Resultado": "Errou"
                         })
                     
-                    # GRAVAÇÃO CIRÚRGICA: Persiste o ranking e os históricos de logs em arquivos CSV reais
                     salvar_tabela_ranking()
                     salvar_tabela_historico()
                     
