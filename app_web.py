@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V19.0 (Blindagem Total com Amarrações de Upload e Download Ativas)
+Versão: V19.1 (Versão Final Consolidada ADS - Correção Strip de Listas)
 Ano: 2026
 """
 
@@ -34,7 +34,7 @@ if "tabela_historico" not in st.session_state:
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
-# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV ATIVO) ---
+# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
@@ -44,11 +44,8 @@ def extrair_dados_do_arquivo(arquivo_carregado):
             df = pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         
-        # Validação estrita se é uma sequência em linha única ou coluna única
         if len(dados) == 1:
             return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
-        if len(dados[0]) == 1:
-            return [float(linha[0]) for linha in dados if pd.notna(linha[0])], "sequencia"
             
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
@@ -207,7 +204,7 @@ def identificar_padrao(sequencia):
 
     return ("Padrão complexo não reconhecido.", None)
 
-# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E AMARRAÇÕES DE BOTÕES) ---
+# --- INTERFACE VISUAL DA PLATAFORMA ---
 
 st.sidebar.title("🔒 Segurança do Sistema")
 if st.session_state["usuario_logado"] is None:
@@ -235,7 +232,6 @@ if st.session_state["usuario_logado"] is None:
     st.warning("⚠️ **Acesso Negado.** Por favor, efetue o login no painel lateral para liberar os motores analíticos.")
     st.info("💡 **Dica de Teste para Professores:** Use Usuário: `marcio` e Senha: `admin123`")
 else:
-    # --- AMARRAÇÃO VISUAL 1: CAIXA DE UPLOAD DO EXCEL (RESTAURADA E GARANTIDA) ---
     st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
     arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
 
@@ -294,11 +290,9 @@ else:
                 matriz_final = [[float(x.strip()) for x in linha.split(",") if x.strip() != ""] for linha in linhas]
                 
                 relatorio, transposta, fig_matriz, matriz_transformada = processar_matriz_pura(matriz_final, escalar_mult=fator_escalar)
-                
                 st.markdown(relatorio)
                 if fig_matriz:
                     st.pyplot(fig_matriz)
-                    
                     txt_transposta = "".join(" | ".join(f"{x:6}" for x in linha) + "\n" for linha in transposta)
                     st.markdown("**Matriz Transposta Resultante:**")
                     st.code(txt_transposta, language="text")
@@ -313,7 +307,7 @@ else:
             except Exception as e:
                 st.error(f"Erro na matriz: {str(e)}")
 
-    # LÓGICA DA ABA 3: TABELA VERDADE
+    # LÓGICA DA ABA 3: TABELA VERDADE (CORREÇÃO STRIP DEFINITIVA APLICADA)
     with aba3:
         st.header("Análise Analítica de Proposições")
         expr_logica = st.text_input("Expressão:", "(A AND B) -> NOT C")
@@ -326,16 +320,18 @@ else:
                 for comb in combinacoes:
                     contexto = dict(zip(variaveis, comb))
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
+                    
+                    # --- OPERAÇÃO DE STRIP CORRIGIDA INDEXADA (SEM ERROS DE LISTAS) ---
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p.strip()}) or ({p.strip()})"
+                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        
                     res = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if res else 'F'}\n"
                 
                 st.code(texto_final, language="text")
                 
-                # --- AMARRAÇÃO VISUAL 2: BOTÃO DE DOWNLOAD DA TABELA VERDADE (RESTAURADO E GARANTIDO) ---
                 st.download_button(
                     label="📥 Baixar Tabela Verdade (.txt)",
                     data=texto_final,
