@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.2 (Divisão Estrutural em Blocos + Quiz Dinâmico)
+Versão: V26.3 (Persistência Real em Bancos de Dados CSV Locais)
 Ano: 2026
 """
 
@@ -12,29 +12,67 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import time
+import os
 from datetime import datetime
 
 st.set_page_config(page_title="Central Analítica & ADS", page_icon="🖥️", layout="wide")
 
 # ===================================================================
-# 1. INICIALIZAÇÃO DO ESTADO GLOBAL (SESSION STATE)
+# 1. MOTOR DE PERSISTÊNCIA REAL DE DADOS (ARQUIVOS CSV)
 # ===================================================================
-if "tabela_usuarios" not in st.session_state:
-    st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
-if "tabela_historico" not in st.session_state:
-    st.session_state["tabela_historico"] = []
-if "tabela_ranking" not in st.session_state:
-    st.session_state["tabela_ranking"] = {"marcio": 1, "professor": 0}
+ARQUIVO_USERS = "usuarios.csv"
+ARQUIVO_RANKING = "ranking.csv"
+ARQUIVO_HISTORICO = "historico.csv"
+
+def carregar_dados_locais():
+    # Inicialização da Tabela de Usuários
+    if os.path.exists(ARQUIVO_USERS):
+        df = pd.read_csv(ARQUIVO_USERS)
+        st.session_state["tabela_usuarios"] = dict(zip(df["usuario"], df["senha"]))
+    else:
+        st.session_state["tabela_usuarios"] = {"marcio": "admin123", "professor": "ads2026"}
+        pd.DataFrame(list(st.session_state["tabela_usuarios"].items()), columns=["usuario", "senha"]).to_csv(ARQUIVO_USERS, index=False)
+
+    # Inicialização do Ranking do Quiz
+    if os.path.exists(ARQUIVO_RANKING):
+        df = pd.read_csv(ARQUIVO_RANKING)
+        st.session_state["tabela_ranking"] = dict(zip(df["usuario"], df["pontos"]))
+    else:
+        st.session_state["tabela_ranking"] = {"marcio": 1, "professor": 0}
+        pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["usuario", "pontos"]).to_csv(ARQUIVO_RANKING, index=False)
+
+    # Inicialização do Log Histórico
+    if os.path.exists(ARQUIVO_HISTORICO):
+        st.session_state["tabela_historico"] = pd.read_csv(ARQUIVO_HISTORICO).to_dict(orient="records")
+    else:
+        st.session_state["tabela_historico"] = []
+        # Cria arquivo vazio com cabeçalhos estruturados
+        pd.DataFrame(columns=["Timestamp", "Usuário", "Questão", "Resultado"]).to_csv(ARQUIVO_HISTORICO, index=False)
+
+def salvar_tabela_usuarios():
+    df = pd.DataFrame(list(st.session_state["tabela_usuarios"].items()), columns=["usuario", "senha"])
+    df.to_csv(ARQUIVO_USERS, index=False)
+
+def salvar_tabela_ranking():
+    df = pd.DataFrame(list(st.session_state["tabela_ranking"].items()), columns=["usuario", "pontos"])
+    df.to_csv(ARQUIVO_RANKING, index=False)
+
+def salvar_tabela_historico():
+    df = pd.DataFrame(st.session_state["tabela_historico"])
+    df.to_csv(ARQUIVO_HISTORICO, index=False)
+
+# Executa a carga inicial de dados direto do disco rígido
+carregar_dados_locais()
+
+# Inicialização de estados voláteis da sessão do Streamlit
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
-
-# Estados do Quiz Dinâmico Rotativo
 if "indice_pergunta" not in st.session_state:
     st.session_state["indice_pergunta"] = 0
 if "quiz_concluido" not in st.session_state:
     st.session_state["quiz_concluido"] = False
 
-# Banco de dados de questões do Quiz de ADS & Engenharia
+# Banco de dados estático de questões do Quiz
 BANCO_QUESTOES = [
     {
         "pergunta": "Na arquitetura de computadores, o número decimal 10 equivale a qual representação binária?",
@@ -67,7 +105,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo.")
@@ -101,9 +139,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia[1] / sequencia[0]
+            r_prop = sequencia / sequencia
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -113,7 +151,7 @@ def identificar_padrao(sequencia):
     if n < 3: return "Insira pelo menos 3 números.", None, 0.0
     serie_txt = checar_convergencia_serie(sequencia)
     
-    p_termo = float(sequencia[0])
+    p_termo = float(sequencia)
     arr = np.array(sequencia)
     estatisticas = (
         f"---  \n📊 **Painel Estatístico Descritivo (Módulo de Dados):**  \n"
@@ -126,9 +164,9 @@ def identificar_padrao(sequencia):
 
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
-        if f_validos and all(sequencia[i] == math.factorial(f_validos[0] + i) for i in range(n)):
+        if f_validos and all(sequencia[i] == math.factorial(f_validos + i) for i in range(n)):
             resultado_padrao = f"Sequência Fatorial (n!){serie_txt}"
-            proximo_num = math.factorial(f_validos[0] + n)
+            proximo_num = math.factorial(f_validos + n)
     if proximo_num is None and all(x >= 0 for x in sequencia) and (p_termo**0.5).is_integer():
         r_start = int(p_termo**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
@@ -141,12 +179,12 @@ def identificar_padrao(sequencia):
         resultado_padrao = "Sequência de Fibonacci"
         proximo_num = sequencia[-1] + sequencia[-2]
     if proximo_num is None and n >= 2:
-        razao_pa = sequencia[1] - sequencia[0]
+        razao_pa = sequencia - sequencia
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             resultado_padrao = f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}"
             proximo_num = sequencia[-1] + razao_pa
     if proximo_num is None and all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia[1] / sequencia[0]
+        razao_pg = sequencia / sequencia
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             resultado_padrao = f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}"
             proximo_num = int(sequencia[-1] * razao_pg)
@@ -155,7 +193,7 @@ def identificar_padrao(sequencia):
     return f"{resultado_padrao}\n\n{estatisticas}", proximo_num, delta_t
 
 # ===================================================================
-# 3. INTERFACE SIDEBAR (SISTEMA DE AUTENTICAÇÃO)
+# 3. INTERFACE SIDEBAR (SISTEMA DE AUTENTICAÇÃO PERSISTENTE)
 # ===================================================================
 st.sidebar.title("🔒 Área de Acesso")
 if st.session_state["usuario_logado"] is None:
@@ -173,9 +211,15 @@ if st.session_state["usuario_logado"] is None:
         n_pass = st.text_input("Nova Senha:", type="password", key="c_pass")
         if st.button("Registrar", key="b_cad"):
             if n_user and n_pass and n_user not in st.session_state["tabela_usuarios"]:
+                # Registra na memória interna
                 st.session_state["tabela_usuarios"][n_user] = n_pass
                 st.session_state["tabela_ranking"][n_user] = 0
-                st.success("Registrado!")
+                
+                # GRAVAÇÃO CIRÚRGICA NO DISCO: Persiste imediatamente nos arquivos CSV
+                salvar_tabela_usuarios()
+                salvar_tabela_ranking()
+                
+                st.success("Registrado com sucesso no banco de dados!")
             else: st.error("Inválido ou já existe.")
 else:
     st.sidebar.write(f"👤 Logado: `{st.session_state['usuario_logado']}`")
@@ -205,7 +249,7 @@ else:
     ])
 
     # ---------------------------------------------------------------
-    # ABA 1: SEQUÊNCIAS E CONVERSÃO DE BASES (PURIFICADA)
+    # ABA 1: SEQUÊNCIAS E CONVERSÃO DE BASES
     # ---------------------------------------------------------------
     with ab1:
         txt_seq = st.text_input("Sequência:", ", ".join(str(x) for x in d_plan) if t_dado == "sequencia" else "1, 2, 3, 4")
@@ -224,7 +268,6 @@ else:
         
         st.markdown("---  \n**🧮 Conversor de Sistemas de Numeração (Arquitetura de Computadores)**")
         dec = st.number_input("Decimal:", min_value=0, value=42)
-        # CORREÇÃO CIRÚRGICA: Removido método invisível/fictício .white() que crashava a aplicação
         st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].upper()}`")
 
     # ---------------------------------------------------------------
@@ -287,7 +330,7 @@ else:
             except Exception as e: st.error(f"Erro na sintaxe lógica: {str(e)}")
 
     # ---------------------------------------------------------------
-    # ABA 4: QUIZ ROTATIVO E DINÂMICO (CORRIGIDO)
+    # ABA 4: QUIZ ROTATIVO COM PERSISTÊNCIA EM DISCO (CORRIGIDO)
     # ---------------------------------------------------------------
     with ab4:
         st.header("🧪 Quiz Simulador ADS & Painel de Liderança")
@@ -300,7 +343,6 @@ else:
             questao_atual = BANCO_QUESTOES[idx]
             
             st.markdown(f"### **Questão {idx + 1}:**")
-            # Utilizar uma chave única vinculada ao índice força o Streamlit a resetar o radiobutton na mudança de questão
             alternativa_selecionada = st.radio(
                 questao_atual["pergunta"], 
                 questao_atual["opcoes"], 
@@ -315,7 +357,7 @@ else:
                         st.session_state["tabela_ranking"][user_atual] = st.session_state["tabela_ranking"].get(user_atual, 0) + 1
                         st.success(f"🎯 Correto, {user_atual.capitalize()}! +1 Ponto computado.")
                         
-                        # Alimenta o histórico do banco de dados na Aba 5
+                        # Alimenta a lista em memória
                         st.session_state["tabela_historico"].append({
                             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "Usuário": user_atual,
@@ -330,6 +372,11 @@ else:
                             "Questão": idx + 1,
                             "Resultado": "Errou"
                         })
+                    
+                    # GRAVAÇÃO CIRÚRGICA: Persiste o ranking e os históricos de logs em arquivos CSV reais
+                    salvar_tabela_ranking()
+                    salvar_tabela_historico()
+                    
             with col_q2:
                 if st.button("Próxima Questão ➡️"):
                     if st.session_state["indice_pergunta"] + 1 < len(BANCO_QUESTOES):
@@ -352,15 +399,15 @@ else:
         st.dataframe(df_ranking, use_container_width=True)
 
     # ---------------------------------------------------------------
-    # ABA 5: BANCO DE DADOS (LOG DE EVENTOS DO QUIZ)
+    # ABA 5: BANCO DE DADOS (LOGS EXTRAÍDOS DOS ARQUIVOS CSV)
     # ---------------------------------------------------------------
     with ab5:
         st.header("🗄️ Visualização das Tabelas do Banco de Dados")
         if st.session_state["tabela_historico"]: 
-            st.markdown("### Histórico de Tentativas no Quiz (`tb_log_eventos`)")
+            st.markdown("### Histórico Geral de Tentativas no Quiz (Carregado de `historico.csv`)")
             st.dataframe(pd.DataFrame(st.session_state["tabela_historico"]), use_container_width=True)
         else: 
-            st.info("Banco de dados histórico vazio. Responda ao quiz para gerar logs.")
+            st.info("Banco de dados histórico vazio. Responda ao quiz para gerar logs físicos.")
 
     # ---------------------------------------------------------------
     # ABA 6: DOCUMENTAÇÃO DE ENGENHARIA
@@ -370,7 +417,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais em hash dinâmico.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
-            st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Mapeia na Tabela Hash do Servidor -> Libera Token.")
+            st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Salva na tabela física local -> Libera Token.")
