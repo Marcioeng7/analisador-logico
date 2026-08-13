@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V23.1 (Componentização e Blindagem de Escopo Total)
+Versão: V23.2 (Correção Cirúrgica de Índices Numéricos no Motor Matemático)
 Ano: 2026
 """
 
@@ -32,7 +32,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         df = pd.read_csv(arquivo_carregado, header=None) if nome_arquivo.endswith('.csv') else pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
         if len(dados) == 1:
-            return [float(x) for x in dados if pd.notna(x)], "sequencia"
+            return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
         return [[float(x) for x in linha if pd.notna(x)] for linha in dados], "matriz"
     except Exception:
         st.error("Erro ao ler o arquivo. Certifique-se de que a planilha possui apenas números.")
@@ -42,7 +42,7 @@ def extrair_dados_do_arquivo(arquivo_carregado):
 def processar_matriz_pura(matriz, escalar_mult=1.0):
     try:
         matriz = [[x * escalar_mult for x in linha] for linha in matriz]
-        num_linhas, num_colunas = len(matriz), len(matriz) if len(matriz) > 0 else 0
+        num_linhas, num_colunas = len(matriz), len(matriz[0]) if len(matriz) > 0 else 0
         if not all(len(l) == num_colunas for l in matriz):
             return "Erro: Linhas desalinhadas.", None, None, None
         transposta = [[matriz[j][i] for j in range(num_linhas)] for i in range(num_colunas)]
@@ -50,10 +50,10 @@ def processar_matriz_pura(matriz, escalar_mult=1.0):
         det_txt = "N/A"
         if num_linhas == num_colunas:
             if num_linhas == 2:
-                det_txt = f"{round((matriz*matriz)-(matriz*matriz), 4)}"
+                det_txt = f"{round((matriz[0][0]*matriz[1][1])-(matriz[0][1]*matriz[1][0]), 4)}"
             elif num_linhas == 3:
-                d1 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
-                d2 = (matriz*matriz*matriz) + (matriz*matriz*matriz) + (matriz*matriz*matriz)
+                d1 = (matriz[0][0]*matriz[1][1]*matriz[2][2]) + (matriz[0][1]*matriz[1][2]*matriz[2][0]) + (matriz[0][2]*matriz[1][0]*matriz[2][1])
+                d2 = (matriz[0][2]*matriz[1][1]*matriz[2][0]) + (matriz[0][0]*matriz[1][2]*matriz[2][1]) + (matriz[0][1]*matriz[1][0]*matriz[2][2])
                 det_txt = f"{round(d1 - d2, 4)}"
         relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média:** {round(sum(todos_valores)/len(todos_valores), 4)}"
         fig = plt.figure(figsize=(4.5, 3.2))
@@ -72,9 +72,9 @@ def checar_convergencia_serie(sequencia):
     if all(abs(sequencia[i] - (1 / (i + 1))) < 0.05 for i in range(n)): return "\n\n**Série:** Harmônica Divergente."
     if all(x != 0 for x in sequencia):
         try:
-            r_prop = sequencia / sequencia
+            r_prop = sequencia[1] / sequencia[0]
             if abs(r_prop) < 1 and all(abs((sequencia[i] / sequencia[i-1]) - r_prop) < 0.01 for i in range(1, n)):
-                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia/(1-r_prop), 4)}**."
+                return f"\n\n**Série:** Geométrica Convergente. Limite: **{round(sequencia[0]/(1-r_prop), 4)}**."
         except Exception: pass
     return ""
 
@@ -84,35 +84,39 @@ def identificar_padrao(sequencia):
     if n < 3: return "Insira pelo menos 3 números.", None
     serie_txt = checar_convergencia_serie(sequencia)
 
-    # 1. TESTE: Fatorial, Quadrados e Cubos (Ajustados elemento a elemento via indexador [0] fixo)
-    p_termo = sequencia
+    # BLINDAGEM OPERACIONAL EXTRAINDO O ÍNDICE ZERO DA LISTA NUMÉRICA
+    p_termo = float(sequencia[0])
+    
     if all(isinstance(x, int) and x > 0 for x in sequencia):
-        f_validos = [i for i in range(1, 14) if math.factorial(i) == p_termo]
-        if f_validos and all(sequencia[i] == math.factorial(f_validos + i) for i in range(n)):
-            return "Sequência Fatorial (n!)", math.factorial(f_validos + n)
+        f_validos = [i for i in range(1, 14) if math.factorial(i) == int(p_termo)]
+        if f_validos and all(sequencia[i] == math.factorial(f_validos[0] + i) for i in range(n)):
+            return "Sequência Fatorial (n!)", math.factorial(f_validos[0] + n)
+            
     if all(x >= 0 for x in sequencia) and (p_termo**0.5).is_integer():
         r_start = int(p_termo**0.5)
         if all(sequencia[i] == (r_start + i)**2 for i in range(n)):
             return "Sequência de Quadrados Perfeitos (n²)", (r_start + n)**2
+            
     if all(sequencia[i] == (round(p_termo**(1/3)) + i)**3 for i in range(n)):
         return "Sequência de Cubos Perfeitos (n³)", (round(p_termo**(1/3)) + n)**3
 
-    # 2. TESTE: Fibonacci, PA e PG Lineares
     if all(sequencia[i] == sequencia[i-1] + sequencia[i-2] for i in range(2, n)):
         return "Sequência de Fibonacci", sequencia[-1] + sequencia[-2]
+        
     if n >= 2:
-        razao_pa = sequencia - sequencia
+        razao_pa = sequencia[1] - sequencia[0]
         if all(sequencia[i] - sequencia[i-1] == razao_pa for i in range(1, n)):
             return f"Progressão Aritmética (PA) | Razão: {razao_pa}{serie_txt}", sequencia[-1] + razao_pa
+            
     if all(x != 0 for x in sequencia) and n >= 2:
-        razao_pg = sequencia / sequencia
+        razao_pg = sequencia[1] / sequencia[0]
         if all(sequencia[i] / sequencia[i-1] == razao_pg for i in range(1, n)):
             return f"Progressão Geométrica (PG) | Razão: *({round(razao_pg, 4)}){serie_txt}", int(sequencia[-1] * razao_pg)
 
     dif_1 = [sequencia[i] - sequencia[i-1] for i in range(1, n)]
     dif_2 = [dif_1[i] - dif_1[i-1] for i in range(1, len(dif_1))]
-    if len(dif_2) > 0 and all(d == dif_2 for d in dif_2):
-        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_1[-1] + dif_2
+    if len(dif_2) > 0 and all(d == dif_2[0] for d in dif_2):
+        return "Função Quadrática (2º Grau)", sequencia[-1] + dif_1[-1] + dif_2[0]
     return ("Padrão complexo não reconhecido.", None)
 
 # --- INTERFACE VISUAL DA PLATAFORMA ---
@@ -184,7 +188,9 @@ else:
             for comb in list(itertools.product([True, False], repeat=len(vars_l))):
                 ctx = dict(zip(vars_l, comb))
                 expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
-                if "->" in expr: expr = f"not ({expr.split('->')[0].strip()}) or ({expr.split('->')[1].strip()})"
+                if "->" in expr:
+                    p = expr.split("->")
+                    expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
                 res = eval(expr, {}, ctx)
                 resultados.append(res)
                 txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
@@ -202,4 +208,3 @@ else:
         st.markdown("* **Lógica Matemática:** Avaliação binária combinatória de conectivos e classificação formal em tempo real.")
         st.markdown("* **Arquitetura de Computadores:** Conversão de barramento decimal nativo para registradores de base 2, 8 e 16.")
         st.markdown("* **Estrutura de Dados:** Manipulação de coleções indexadas dinâmicas e matrizes multidimensionais.")
-
