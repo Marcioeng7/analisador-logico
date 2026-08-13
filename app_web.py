@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V20.0 (Módulo de Autocadastro de Usuários e Banco de Dados Simulado)
+Versão: V20.1 (Módulo de Autocadastro - Correção das Aspas Finais)
 Ano: 2026
 """
 
@@ -21,9 +21,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ARQUITETURA DE BANCO DE DADOS SIMULADA (PADRÃO ADS) ---
+# --- ARQUITETURA DE BANCO DE DADOS SIMULADA ---
 if "tabela_usuarios" not in st.session_state:
-    # Marcio e professor iniciam pré-cadastrados no sistema
     st.session_state["tabela_usuarios"] = {
         "marcio": "admin123",
         "professor": "ads2026"
@@ -132,8 +131,8 @@ def analisar_propriedades(sequencia):
     if not all(isinstance(x, int) for x in sequencia):
         return ""
     properties = []
-    if append_even := all(x % 2 == 0 for x in sequencia): properties.append("Pares")
-    if append_odd := all(x % 2 != 0 for x in sequencia): properties.append("Ímpares")
+    if all(x % 2 == 0 for x in sequencia): properties.append("Pares")
+    if all(x % 2 != 0 for x in sequencia): properties.append("Ímpares")
     if all(eh_primo(x) for x in sequencia): properties.append("Primos")
     return f"**Propriedade:** {', '.join(properties)}." if properties else ""
 
@@ -195,12 +194,11 @@ def identificar_padrao(sequencia):
 
     return ("Padrão complexo não reconhecido.", None)
 
-# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E AUTOCADASTRO) ---
+# --- INTERFACE VISUAL DA PLATAFORMA ---
 
 st.sidebar.title("🔒 Área de Acesso")
 
 if st.session_state["usuario_logado"] is None:
-    # Cria duas abas de navegação dentro da própria barra lateral esquerda
     aba_acesso1, aba_acesso2 = st.sidebar.tabs(["Acessar", "Criar Conta"])
     
     with aba_acesso1:
@@ -213,7 +211,7 @@ if st.session_state["usuario_logado"] is None:
                 st.sidebar.success(f"Conectado!")
                 st.rerun()
             else:
-                st.error("Usuário ou senha incorretos.")
+                st.sidebar.error("Usuário ou senha incorretos.")
                 
     with aba_acesso2:
         st.subheader("Novo Cadastro")
@@ -222,13 +220,12 @@ if st.session_state["usuario_logado"] is None:
         
         if st.button("Registrar no Banco", key="btn_cadastro"):
             if novo_usuario == "" or nova_senha == "":
-                st.error("Preencha todos os campos!")
+                st.sidebar.error("Preencha todos os campos!")
             elif novo_usuario in st.session_state["tabela_usuarios"]:
-                st.warning("Este nome de usuário já existe no sistema.")
+                st.sidebar.warning("Este nome de usuário já existe no sistema.")
             else:
-                # Injeta dinamicamente as credenciais na memória do banco simulado
                 st.session_state["tabela_usuarios"][novo_usuario] = nova_senha
-                st.success(f"Usuário `{novo_usuario}` cadastrado com sucesso! Vá na aba 'Acessar' para fazer o login.")
+                st.sidebar.success(f"Registrado! Vá na aba 'Acessar'.")
 else:
     st.sidebar.write(f"👤 **Logado como:** `{st.session_state['usuario_logado']}`")
     st.sidebar.info("Nível de Acesso: Autorizado")
@@ -370,3 +367,4 @@ else:
         st.subheader("2. Mapeamento de Engenharia de Software por Disciplinas (ADS)")
         st.markdown("""
         *   **Lógica de Programação:** Implementada na Aba 3 através do motor que decodifica strings literais, mapeia permutações binárias combinatórias e avalia a tabela verdade resultante.
+        *   **Estruturas de Dados Avançadas:** Utilização de vetores e arranjos multidimensionais (matrizes dinâmicas do tipo *List of Lists*) manipuladas e remapeadas através de compreensões de listas lineares.
