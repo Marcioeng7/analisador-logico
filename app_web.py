@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro)
-Versão: V17.3 (Blindagem Matemática Definitiva Contra Operações em Lote de Listas)
+Versão: V19.0 (Blindagem Total com Amarrações de Upload e Download Ativas)
 Ano: 2026
 """
 
@@ -34,7 +34,7 @@ if "tabela_historico" not in st.session_state:
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
-# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV) ---
+# --- FUNÇÃO AUXILIAR: LEITOR DE PLANILHAS (EXCEL E CSV ATIVO) ---
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
         nome_arquivo = arquivo_carregado.name
@@ -43,8 +43,13 @@ def extrair_dados_do_arquivo(arquivo_carregado):
         else:
             df = pd.read_excel(arquivo_carregado, header=None)
         dados = df.values.tolist()
+        
+        # Validação estrita se é uma sequência em linha única ou coluna única
         if len(dados) == 1:
             return [float(x) for x in dados[0] if pd.notna(x)], "sequencia"
+        if len(dados[0]) == 1:
+            return [float(linha[0]) for linha in dados if pd.notna(linha[0])], "sequencia"
+            
         matriz_limpa = [[float(x) for x in linha if pd.notna(x)] for linha in dados]
         return matriz_limpa, "matriz"
     except Exception:
@@ -147,7 +152,7 @@ def identificar_padrao(sequencia):
     # 1. TESTE: Fatorial
     if all(isinstance(x, int) and x > 0 for x in sequencia):
         p_termo = sequencia[0]
-        fatoriais_validos = [i for i in range(1, 15) if math.factorial(i) == p_termo]
+        fatoriais_validos = [i for i in range(1, 14) if math.factorial(i) == p_termo]
         if fatoriais_validos:
             n_inicio = fatoriais_validos[0]
             if all(sequencia[i] == math.factorial(n_inicio + i) for i in range(n)):
@@ -202,7 +207,7 @@ def identificar_padrao(sequencia):
 
     return ("Padrão complexo não reconhecido.", None)
 
-# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E ABAS ADS) ---
+# --- INTERFACE VISUAL DA PLATAFORMA (TELA DE LOGIN E AMARRAÇÕES DE BOTÕES) ---
 
 st.sidebar.title("🔒 Segurança do Sistema")
 if st.session_state["usuario_logado"] is None:
@@ -230,13 +235,23 @@ if st.session_state["usuario_logado"] is None:
     st.warning("⚠️ **Acesso Negado.** Por favor, efetue o login no painel lateral para liberar os motores analíticos.")
     st.info("💡 **Dica de Teste para Professores:** Use Usuário: `marcio` e Senha: `admin123`")
 else:
+    # --- AMARRAÇÃO VISUAL 1: CAIXA DE UPLOAD DO EXCEL (RESTAURADA E GARANTIDA) ---
+    st.markdown("### 📥 Entrada por Arquivo Extrator (Opcional)")
+    arquivo_usuario = st.file_uploader("Arraste ou selecione uma planilha Excel (.xlsx) ou arquivo (.csv)", type=["xlsx", "csv"])
+
+    dados_planilha, tipo_dado = None, None
+    if arquivo_usuario is not None:
+        dados_planilha, tipo_dado = extrair_dados_do_arquivo(arquivo_usuario)
+        if tipo_dado == "sequencia":
+            st.info(f"Planilha carregada! Uma sequência de {len(dados_planilha)} números foi injetada na Aba 1.")
+        elif tipo_dado == "matriz":
+            st.info(f"Planilha carregada! Uma matriz foi injetada na Aba 2.")
+
     aba1, aba2, aba3, aba4, aba5 = st.tabs(["🔢 Sequências & Séries", "🧮 Operações com Matrizes", "🧠 Tabela Verdade", "🗄️ Tabela Banco de Dados", "📚 Documentação ADS (TCC)"])
 
     # LÓGICA DA ABA 1: SEQUÊNCIAS
     with aba1:
         st.header("Análise de Padrões Sequenciais")
-        arquivo_usuario = st.file_uploader("Importar planilha Excel/CSV para Sequência", type=["xlsx", "csv"], key="file_seq")
-        dados_planilha, tipo_dado = (extrair_dados_do_arquivo(arquivo_usuario) if arquivo_usuario else (None, None))
         val_padrao = ", ".join(str(x) for x in dados_planilha) if tipo_dado == "sequencia" else "1, 2, 3, 4"
         texto_usuario = st.text_input("Elementos da Sequência:", val_padrao)
         
@@ -265,7 +280,13 @@ else:
     with aba2:
         st.header("Cálculo Matricial Linear")
         fator_escalar = st.number_input("Multiplicador Escalar (K):", value=1.0, step=0.5)
-        entrada_matriz = st.text_area("Estrutura da Matriz:", "0,1,2,1,0;\n1,3,4,3,1;\n2,4,5,4,2")
+        
+        if tipo_dado == "matriz":
+            valor_padrao_matriz = ";\n".join(", ".join(str(x) for x in linha) for linha in dados_planilha)
+        else:
+            valor_padrao_matriz = "0,1,2,1,0;\n1,3,4,3,1;\n2,4,5,4,2;\n1,3,4,3,1;\n0,1,2,1,0"
+            
+        entrada_matriz = st.text_area("Estrutura da Matriz:", valor_padrao_matriz, height=120)
         
         if st.button("Processar Matriz 3D"):
             try:
@@ -277,6 +298,11 @@ else:
                 st.markdown(relatorio)
                 if fig_matriz:
                     st.pyplot(fig_matriz)
+                    
+                    txt_transposta = "".join(" | ".join(f"{x:6}" for x in linha) + "\n" for linha in transposta)
+                    st.markdown("**Matriz Transposta Resultante:**")
+                    st.code(txt_transposta, language="text")
+                    
                     st.session_state["tabela_historico"].append({
                         "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                         "usuario": st.session_state["usuario_logado"],
@@ -302,11 +328,20 @@ else:
                     expr = expr_logica.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     if "->" in expr:
                         p = expr.split("->")
-                        expr = f"not ({p[0].strip()}) or ({p[1].strip()})"
+                        expr = f"not ({p.strip()}) or ({p.strip()})"
                     res = eval(expr, {}, contexto)
                     valores_linha = " | ".join(f" { 'V' if contexto[v] else 'F' } " for v in variaveis)
                     texto_final += f"{valores_linha} |  {'V' if res else 'F'}\n"
+                
                 st.code(texto_final, language="text")
+                
+                # --- AMARRAÇÃO VISUAL 2: BOTÃO DE DOWNLOAD DA TABELA VERDADE (RESTAURADO E GARANTIDO) ---
+                st.download_button(
+                    label="📥 Baixar Tabela Verdade (.txt)",
+                    data=texto_final,
+                    file_name="tabela_verdade_engenharia.txt",
+                    mime="text/plain"
+                )
             except Exception as e:
                 st.error(f"Erro na lógica: {str(e)}")
 
