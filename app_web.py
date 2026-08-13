@@ -1,7 +1,7 @@
 """
 Analisador de Sequências Numéricas, Matrizes e Padrões Lógicos
 Autor: Marcio de Andrade Neves (Engenheiro e Desenvolvedor ADS)
-Versão: V26.4 (Blindagem Completa de Sequências + Bicondicional na Tabela Verdade)
+Versão: V26.5 (Matriz Inversa, Limpeza de Banco de Dados e Superfície Otimizada)
 Ano: 2026
 """
 
@@ -90,7 +90,7 @@ BANCO_QUESTOES = [
 ]
 
 # ===================================================================
-# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS (BLINDAGEM CONTRA FLOAT BUG)
+# 2. FUNÇÕES UTILITÁRIAS E ALGORÍTMICAS (BLINDADAS)
 # ===================================================================
 def extrair_dados_do_arquivo(arquivo_carregado):
     try:
@@ -103,28 +103,6 @@ def extrair_dados_do_arquivo(arquivo_carregado):
     except Exception:
         st.error("Erro ao ler o arquivo.")
         return None, None
-
-def processar_matriz_pura(matriz, escalar_mult=1.0):
-    t_inicio = time.perf_counter()
-    try:
-        np_matriz = np.array(matriz, dtype=float) * escalar_mult
-        num_linhas, num_colunas = np_matriz.shape
-        transposta = np_matriz.T.tolist()
-        det_txt = "N/A"
-        if num_linhas == num_colunas and (num_linhas == 2 or num_linhas == 3):
-            det_txt = f"{round(float(np.linalg.det(np_matriz)), 4)}"
-        t_fim = time.perf_counter()
-        delta_t = (t_fim - t_inicio) * 1000
-        relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
-        
-        fig = plt.figure(figsize=(4, 2.5))
-        ax = fig.add_subplot(111, projection='3d')
-        X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
-        ax.plot_surface(X, Y, np_matriz, cmap="coolwarm", edgecolor='none', alpha=0.9)
-        ax.set_title("Superfície 3D - Matriz A", fontsize=8, fontweight="bold")
-        return relatorio, transposta, fig, delta_t
-    except Exception as e:
-        return f"Erro analítico matricial: {str(e)}", None, None, 0.0
 
 def checar_convergencia_serie(sequencia):
     n = len(sequencia)
@@ -221,6 +199,40 @@ else:
         st.rerun()
 
 # ===================================================================
+# FUNÇÃO REFORMULADA: PROCESSAMENTO MATRICIAL DINÂMICO E GRÁFICO 3D
+# ===================================================================
+def processar_matriz_pura(matriz, escalar_mult=1.0):
+    t_inicio = time.perf_counter()
+    try:
+        np_matriz = np.array(matriz, dtype=float) * escalar_mult
+        num_linhas, num_colunas = np_matriz.shape
+        transposta = np_matriz.T.tolist()
+        
+        # Determinante dinâmico para qualquer matriz quadrada
+        det_txt = "N/A (Não Quadrada)"
+        inversa_np = None
+        if num_linhas == num_colunas:
+            det_val = float(np.linalg.det(np_matriz))
+            det_txt = f"{round(det_val, 4)}"
+            if abs(det_val) > 1e-9:
+                inversa_np = np.linalg.inv(np_matriz)
+        
+        t_fim = time.perf_counter()
+        delta_t = (t_fim - t_inicio) * 1000
+        relatorio = f"**Dimensão:** {num_linhas}x{num_colunas} | **Determinante:** {det_txt} | **Média Global:** {round(float(np.mean(np_matriz)), 4)}"
+        
+        # Geração dinâmica adaptativa da superfície 3D
+        fig = plt.figure(figsize=(4, 2.5))
+        ax = fig.add_subplot(111, projection='3d')
+        X, Y = np.meshgrid(np.arange(0, num_colunas, 1), np.arange(0, num_linhas, 1))
+        ax.plot_surface(X, Y, np_matriz, cmap="coolwarm", edgecolor='none', alpha=0.9)
+        ax.set_title("Superfície 3D - Matriz A", fontsize=8, fontweight="bold")
+        
+        return relatorio, transposta, inversa_np, fig, delta_t
+    except Exception as e:
+        return f"Erro analítico matricial: {str(e)}", None, None, None, 0.0
+
+# ===================================================================
 # 4. CORPO PRINCIPAL E NAVEGAÇÃO DE ABAS
 # ===================================================================
 st.title("🖥️ Central Computacional Prática de ADS & Engenharia")
@@ -262,7 +274,7 @@ else:
         st.write(f"**Binário:** `{bin(dec)[2:]}` | **Octal:** `{oct(dec)[2:]}` | **Hexadecimal:** `{hex(dec)[2:].upper()}`")
 
     # ---------------------------------------------------------------
-    # ABA 2: OPERAÇÕES MATRICIAIS E SUPERFÍCIE 3D
+    # ABA 2: OPERAÇÕES MATRICIAIS AVANÇADAS E TOPOGRAFIA 3D (REVOLUCIONADA)
     # ---------------------------------------------------------------
     with ab2:
         st.subheader("Operações Avançadas entre Duas Matrizes")
@@ -276,12 +288,24 @@ else:
                 linhasB = [l.strip() for l in v_matB.split(";") if l.strip()]
                 matrizB_list = [[float(x) for x in linha.split(",") if x.strip()] for linha in linhasB]
                 
-                rel, trans, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
+                rel, trans, inv_np, fig_m, dt_m = processar_matriz_pura(matrizA_list, k)
                 st.markdown(rel)
                 st.info(f"⚡ **Desempenho Algorítmico:** Operação matricial concluída em **{round(dt_m, 4)} ms** | Complexidade: $O(n^3)$")
+                
                 if fig_m: 
                     st.pyplot(fig_m)
                     plt.close(fig_m)
+                
+                col_m1, col_m2 = st.columns(2)
+                with col_m1:
+                    st.markdown("**Matriz Transposta de A ($A^T$):**")
+                    st.code(str(np.array(trans)))
+                with col_m2:
+                    st.markdown("**Matriz Inversa de A ($A^{-1}$):**")
+                    if inv_np is not None:
+                        st.code(str(np.round(inv_np, 4)))
+                    else:
+                        st.warning("Inversa Indisponível (Matriz não-quadrada ou Determinante nulo).")
                 
                 matA, matB = np.array(matrizA_list, dtype=float), np.array(matrizB_list, dtype=float)
                 if matA.shape == matB.shape:
@@ -303,29 +327,22 @@ else:
         log_in = st.text_input("Expressão:", "(A AND B) <-> NOT C")
         if st.button("Gerar Tabela Verdade"):
             try:
-                # Extrai apenas as variáveis proposicionais (letras maiúsculas isoladas)
                 vars_l = sorted(list(set([c for c in log_in if c.isalpha() and c.isupper()])))
                 txt_t = " | ".join(vars_l) + f" | {log_in} \n" + "-"*40 + "\n"
                 resultados = []
                 
-                # Gera todas as combinações lógicas binárias possíveis
                 for comb in list(itertools.product([True, False], repeat=len(vars_l))):
                     ctx = dict(zip(vars_l, comb))
-                    
-                    # Padroniza conectivos lógicos elementares
                     expr = log_in.upper().replace("AND", " and ").replace("OR", " or ").replace("NOT", " not ")
                     
-                    # Processamento cirúrgico da Equivalência Material / Bicondicional (<->)
                     if "<->" in expr:
                         partes_bi = expr.split("<->")
                         expr = f"({partes_bi[0].strip()}) == ({partes_bi[1].strip()})"
                         
-                    # Processamento da Implicação Lógica / Condicional (->)
                     if "->" in expr:
                         partes_cond = expr.split("->")
                         expr = f"not ({partes_cond[0].strip()}) or ({partes_cond[1].strip()})"
                         
-                    # Executa a validação lógica em ambiente isolado de contexto
                     res = eval(expr, {}, ctx)
                     resultados.append(res)
                     txt_t += " | ".join("V" if ctx[v] else "F" for v in vars_l) + f" | {'V' if res else 'F'}\n"
@@ -402,10 +419,20 @@ else:
         st.dataframe(df_ranking, use_container_width=True)
 
     # ---------------------------------------------------------------
-    # ABA 5: BANCO DE DADOS (LOGS EXTRAÍDOS DOS ARQUIVOS CSV)
+    # ABA 5: BANCO DE DADOS (COM FUNCIONALIDADE DE LIMPEZA INTEGRADA)
     # ---------------------------------------------------------------
     with ab5:
         st.header("🗄️ Visualização das Tabelas do Banco de Dados")
+        
+        # Interface de Limpeza Administrativa
+        st.subheader("🛠️ Painel Avançado de Governança")
+        if st.button("🚨 Limpar Histórico e Eventos do Sistema"):
+            st.session_state["tabela_historico"] = []
+            salvar_tabela_historico()
+            st.toast("Banco de dados histórico resetado com sucesso!", icon="🗑️")
+            st.rerun()
+            
+        st.markdown("---")
         if st.session_state["tabela_historico"]: 
             st.markdown("### Histórico Geral de Tentativas no Quiz (Carregado de `historico.csv`)")
             st.dataframe(pd.DataFrame(st.session_state["tabela_historico"]), use_container_width=True)
@@ -420,7 +447,7 @@ else:
         col_eng1, col_col2 = st.columns(2)
         with col_eng1:
             st.subheader("📋 Requisitos Funcionais (RF)")
-            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).")
+            st.info("* **RF001 - Autocadastro:** Módulo de credenciais persistidas localmente em CSV.\n* **RF002 - Controle de Sessão:** Bloqueio de visualizações para sessões nulas.\n* **RF003 - Análise de Performance:** Cronometragem algorítmica real via hardware (ms).\n* **RF004 - Governança de Dados:** Purga e expurgo de tabelas físicas pelo administrador.")
         with col_col2:
             st.subheader("📝 Cenário de Caso de Uso: Efetuar Cadastro")
             st.success("* **Atores:** Usuário Acadêmico ou Professor.\n* **Fluxo:** Navega para 'Criar Conta' -> Insere ID exclusivo e Chave -> Salva na tabela física local -> Libera Token.")
